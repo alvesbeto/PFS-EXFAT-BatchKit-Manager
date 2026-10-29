@@ -1,0 +1,34 @@
+# --- Python / uv ---
+.venv/
+.uv/
+*.egg-info/
+*.egg
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# --- setuptools / PyInstaller (packaging/build.sh) ---
+build/
+dist/
+
+# --- pfsshell nativo (tools/build_pfsshell.sh → clone + meson) ---
+tools/pfsshell-build/
+tools/bin/
+
+# Binários opcionais locais (FMCBInstaller, ATA-Assault IRX) — não versionar
+tools/bundled/
+
+# --- Imagens de disco PS2 (build-image, testes locais, backups) ---
+*.img
+
+# --- SO / editor (artefactos locais) ---
+.DS_Store
+Thumbs.db
+*.swp
+*~

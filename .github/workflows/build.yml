@@ -1,0 +1,95 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            id: linux-x86_64
+            pfsshell: true
+          - os: macos-latest
+            id: macos-arm64
+            pfsshell: false
+          - os: windows-latest
+            id: windows-x86_64
+            pfsshell: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install and build
+        shell: bash
+        run: |
+          uv venv .venv
+          uv pip install --python .venv -e ".[build,gui]"
+          uv run --python .venv python -m PyInstaller packaging/pfs-batchkit.spec --noconfirm
+          uv run --python .venv python -m PyInstaller packaging/pfs-batchkit-ui.spec --noconfirm
+
+      - name: Bundle Linux pfsshell
+        if: matrix.pfsshell
+        shell: bash
+        run: |
+          chmod +x tools/build_pfsshell.sh || true
+          if [[ -x tools/bin/pfsshell ]]; then
+            install -m755 tools/bin/pfsshell dist/pfsshell
+          fi
+
+      - name: Smoke test CLI
+        shell: bash
+        run: uv run --python .venv pfs-batchkit --version
+
+      - name: Unit tests
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          uv run --python .venv python tests/test_exfat.py
+          uv run --python .venv python tests/test_host.py
+
+      - name: Pack release archive
+        shell: bash
+        run: |
+          mkdir -p "release/${{ matrix.id }}"
+          shopt -s nullglob
+          for f in dist/pfs-batchkit* dist/pfsshell*; do
+            cp "$f" "release/${{ matrix.id }}/"
+          done
+          ls -la "release/${{ matrix.id }}/"
+
+      - name: Upload platform bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pfs-batchkit-${{ matrix.id }}
+          path: release/${{ matrix.id }}/*
+
+  merge-release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pfs-batchkit-*
+          path: all-platforms
+          merge-multiple: false
+
+      - name: Show artifacts
+        run: find all-platforms -type f | sort
+
+      - name: Upload combined release
+        uses: actions/upload-artifact@v4
+        with:
+          name: pfs-batchkit-all-platforms
+          path: all-platforms/**/*

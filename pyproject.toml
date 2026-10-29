@@ -1,0 +1,28 @@
+[project]
+name = "pfs-batchkit"
+version = "0.5.0"
+description = "Prepare PS2 hybrid APA boot + exFAT OPL HDD layouts from Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+build = ["pyinstaller>=6.0"]
+gui = ["PySide6>=6.6"]
+# legado (removido da UI principal)
+tui = ["textual>=0.80.0"]
+
+[project.scripts]
+pfs-batchkit = "pfs_batchkit.cli:main"
+pfs-batchkit-ui = "pfs_batchkit.gui.main:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

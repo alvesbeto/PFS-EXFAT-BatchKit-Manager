@@ -1,0 +1,46 @@
+--- a/src/shell.c
++++ b/src/shell.c
+@@ -289,22 +289,13 @@
+     }
+ }
+ 
+-/*
+ static int do_mkpfs(context_t *ctx, int argc, char *argv[])
+ {
+-#define PFS_ZONE_SIZE 8192
+-#define PFS_FRAGMENT 0x00000000
+-    int format_arg[] = {PFS_ZONE_SIZE, 0x2d66, PFS_FRAGMENT};
+-
+-    char tmp[256];
+-    strcpy(tmp, "hdd0:");
+-    strcat(tmp, argv[1]);
+-    int result =
+-        iomanX_format("pfs:", tmp, (void *)&format_arg, sizeof(format_arg));
++    int result = mkpfs(argv[1]);
+     if (result < 0)
+-        fprintf(stderr, "(!) %s: %s.\n", tmp, strerror(-result));
++        fprintf(stderr, "(!) mkfs %s: %s.\n", argv[1], strerror(-result));
+     return (result);
+ }
+-*/
+ 
+ /* PFS, CFS, HDL, REISER, EXT2, EXT2SWAP, MBR */
+ 
+@@ -692,6 +683,7 @@
+         "device <device> - use this PS2 HDD;\n"
+         "initialize - blank and create APA/PFS on a new PS2 HDD (destructive);\n"
+         "mkpart <part_name> <size> <fstype> - create a new PFS formatted partition;\n"
++        "mkfs <part_name> - format PFS on an existing partition (destructive);\n"
+         "\tSize must end with M or G literal (like 384M or 3G);\n"
+         "\tAcceptable fs types: {PFS, CFS, HDL, REISER, EXT2, EXT2SWAP, MBR};\n"
+         "\tOnly fs type PFS will format partition, other partitions should be formatted by another utilities;\n"
+@@ -734,7 +726,8 @@
+         {"initialize", 0, need_device + need_no_mount, &do_initialize},
+         {"initialize", 1, need_device + need_no_mount, &do_initialize},
+         {"mkpart", 3, need_device, &do_mkpart},
+-        /* {"mkpfs", 1, need_device, &do_mkpfs}, */
++        {"mkfs", 1, need_device + need_no_mount, &do_mkpfs},
++        {"mkpfs", 1, need_device + need_no_mount, &do_mkpfs},
+         {"mount", 1, need_device + need_no_mount, &do_mount},
+         {"umount", 0, need_device + need_mount, &do_umount},
+         {"ls", 0, need_device, &do_ls},
