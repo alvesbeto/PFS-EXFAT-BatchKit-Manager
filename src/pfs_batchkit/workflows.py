@@ -7,6 +7,9 @@ from pathlib import Path
 
 from .boot_loader import ensure_boot_kelf, resolve_boot_kelf
 from .fhdb_bdm import (
+    ExfatBootSafetyError,
+    allow_exfat_during_prepare,
+    assert_safe_to_format_exfat,
     fhdb_exfat_boot_safe,
     install_ata_assault_sysconf,
     probe_ata_assault_installed,
@@ -111,24 +114,35 @@ def run_build_image(
             messages.append(f"Dica: {pfsshell_requirements_hint()}")
             exit_code = 2
 
-    if format_exfat:
-        try:
-            result = format_exfat_region(
-                output,
-                layout,
-                volume_label=volume_label,
-                scaffold_opl=scaffold_opl,
-            )
+    if format_exfat and exit_code == 0:
+        if not init_pfs:
             messages.append(
-                f"exFAT formatado label={result.volume_label!r} "
-                f"({result.byte_size} bytes)"
+                "exFAT não formatado na imagem: use --init-pfs ou format-exfat após FHDB no destino."
             )
-            if result.mount_point:
-                messages.append(f"Pastas OPL criadas (mount {result.mount_point})")
-        except ExfatFormatError as exc:
-            messages.append(f"Falha exFAT: {exc}")
-            messages.append(f"Dica: {format_exfat_requirements_hint()}")
-            exit_code = 2
+        else:
+            try:
+                assert_safe_to_format_exfat(output)
+            except ExfatBootSafetyError as exc:
+                messages.append(str(exc))
+                exit_code = 2
+            else:
+                try:
+                    result = format_exfat_region(
+                        output,
+                        layout,
+                        volume_label=volume_label,
+                        scaffold_opl=scaffold_opl,
+                    )
+                    messages.append(
+                        f"exFAT formatado label={result.volume_label!r} "
+                        f"({result.byte_size} bytes)"
+                    )
+                    if result.mount_point:
+                        messages.append(f"Pastas OPL criadas (mount {result.mount_point})")
+                except ExfatFormatError as exc:
+                    messages.append(f"Falha exFAT: {exc}")
+                    messages.append(f"Dica: {format_exfat_requirements_hint()}")
+                    exit_code = 2
 
     return BuildImageOutcome(layout=layout, messages=messages, exit_code=exit_code)
 
@@ -259,6 +273,16 @@ def run_prepare_device(
     exit_code = 0
     defer_exfat = resolve_defer_exfat_format(defer_exfat_format)
     opl_mount: Path | None = None
+
+    if format_exfat and not pfs_only and not allow_exfat_during_prepare():
+        format_exfat = False
+        defer_exfat = True
+        messages.append(
+            "Política BatchKit: o prepare **nunca** formata exFAT (evita tela preta). "
+            "Fluxo: prepare → PS2 Install FHDB → reinicie → "
+            "`pfs-batchkit format-exfat DISCO --force`."
+        )
+
     blocked = _reject_system_disk(device)
     if blocked is not None:
         return BuildImageOutcome(
@@ -501,12 +525,20 @@ def run_prepare_device(
             )
 
         if exit_code == 0:
-            try:
-                bdm_result = install_ata_assault_sysconf(device)
-                messages.extend(bdm_result.messages)
-            except PfsInitError as exc:
-                messages.append(str(exc))
+            from .fhdb_bdm import _skip_ata_assault
+
+            if _skip_ata_assault():
+                messages.append(
+                    "Falha: PFS_BATCHKIT_SKIP_ATA_ASSAULT=1 — HDD híbrido exFAT exige ATA-Assault."
+                )
                 exit_code = 2
+            else:
+                try:
+                    bdm_result = install_ata_assault_sysconf(device)
+                    messages.extend(bdm_result.messages)
+                except PfsInitError as exc:
+                    messages.append(str(exc))
+                    exit_code = 2
 
     if format_exfat and exit_code == 0 and not defer_exfat:
         from .fhdb_stage import probe_fhdb_installed
@@ -527,11 +559,11 @@ def run_prepare_device(
     if format_exfat and exit_code == 0:
         if defer_exfat:
             messages.append(
-                "exFAT: format. adiado (partição MBR já reservada). "
-                "FreeHDBoot trava se o volume exFAT estiver formatado antes do menu FHDB — "
-                "instale FHDB no PS2, reinicie, depois: "
-                "pfs-batchkit format-exfat DISCO ou desmarque «Adiar exFAT» e repita o prepare "
-                "(com drivers ATA-Assault já em __sysconf)."
+                "exFAT: format. adiado (partição MBR reservada; superblock exFAT ausente). "
+                "Isto evita tela preta no 1º boot antes do Install FHDB. "
+                "No PS2: wLaunchELF → APPS/FreeMcBoot → Install FHDB → reinicie; "
+                "no PC: pfs-batchkit format-exfat DISCO ou prepare de novo com exFAT. "
+                "Se já tiver tela preta: pfs-batchkit recover-first-boot DISCO --force."
             )
         else:
             try:

@@ -32,6 +32,24 @@ SYSCONF_USBD = "FMCB/USBD.IRX"
 SYSCONF_USBHDFSD = "FMCB/USBHDFSD.IRX"
 
 
+class ExfatBootSafetyError(Exception):
+    """Refusing exFAT mkfs — would cause PS2 black screen on hybrid APA-Jail boot."""
+
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+def allow_exfat_during_prepare() -> bool:
+    """Expert override: mkfs exFAT inside ``prepare-device`` (still requires FHDB + ATA-Assault)."""
+    return _env_truthy("PFS_BATCHKIT_FORMAT_EXFAT_ON_PREPARE")
+
+
+def force_exfat_before_fhdb() -> bool:
+    """Unsafe: skip FHDB requirement (ATA-Assault still required unless also skipped)."""
+    return _env_truthy("PFS_BATCHKIT_FORCE_EXFAT_BEFORE_FHDB")
+
+
 @dataclass(frozen=True)
 class AtaAssaultBundle:
     usbd: Path
@@ -48,19 +66,18 @@ def _skip_ata_assault() -> bool:
 
 def resolve_defer_exfat_format(explicit: bool | None = None) -> bool:
     """
-    Default False: ``prepare-device`` formata exFAT quando ``format_exfat`` está activo.
+    Default **True** — ``prepare-device`` nunca formata exFAT no mesmo passo (evita tela preta).
 
-    Adiar só com ``PFS_BATCHKIT_DEFER_EXFAT=1`` ou ``defer_exfat_format=True`` (FHDB antes do mkfs).
+    Só formata no prepare com ``PFS_BATCHKIT_FORMAT_EXFAT_ON_PREPARE=1`` + FHDB + ATA-Assault,
+    ou depois via ``format-exfat`` / segundo prepare.
     """
     if explicit is not None:
         return explicit
-    if os.environ.get("PFS_BATCHKIT_DEFER_EXFAT", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-    ):
+    if _env_truthy("PFS_BATCHKIT_DEFER_EXFAT"):
         return True
-    return False
+    if allow_exfat_during_prepare():
+        return False
+    return True
 
 
 def fetch_ata_assault_bundle() -> AtaAssaultBundle:
@@ -128,19 +145,53 @@ def fhdb_exfat_boot_safe(
     defer_exfat: bool,
 ) -> tuple[bool, str | None]:
     """
-    FreeHDBoot + formatted exFAT on the same disk can hang at boot (tela preta)
-    unless ATA-Assault is in __sysconf. Returns (safe_to_format_exfat, user_message).
+    Formatted exFAT on APA-Jail + same ATA as PFS → tela preta no boot unless guarded.
+
+    Applies **before** osdmain.elf exists (1º boot wLaunchELF) and after FHDB.
     """
-    if not format_exfat or defer_exfat or not fhdb_installed:
+    if not format_exfat or defer_exfat:
         return True, None
-    if ata_assault_installed:
+    if force_exfat_before_fhdb():
+        if not ata_assault_installed:
+            return False, (
+                "exFAT bloqueado: PFS_BATCHKIT_FORCE_EXFAT_BEFORE_FHDB exige ATA-Assault "
+                "em __sysconf/FMCB/."
+            )
         return True, None
-    return False, (
-        "exFAT não formatado: FreeHDBoot (osdmain.elf) + superblock exFAT no mesmo disco "
-        "trava no boot (tela preta) sem ATA-Assault em __sysconf/FMCB/. "
-        "Corrija drivers ATA-Assault e rode format-exfat, ou use --defer-exfat / "
-        "PFS_BATCHKIT_DEFER_EXFAT=1 no prepare."
+    if not ata_assault_installed:
+        return False, (
+            "exFAT bloqueado: falta ATA-Assault em __sysconf/FMCB/. "
+            "Superblock exFAT + boot APA trava no IOP (tela preta)."
+        )
+    if not fhdb_installed:
+        return False, (
+            "exFAT bloqueado: osdmain.elf (FHDB) ausente. "
+            "Instale FHDB no PS2 (FMCBInstaller) ou HDD-OSD no PC; depois use format-exfat."
+        )
+    return True, None
+
+
+def assert_safe_to_format_exfat(target: Path) -> None:
+    """Raise ``ExfatBootSafetyError`` if mkfs exFAT on this hybrid target is unsafe."""
+    from .fhdb_stage import probe_fhdb_installed
+
+    if _skip_ata_assault() and not force_exfat_before_fhdb():
+        raise ExfatBootSafetyError(
+            "PFS_BATCHKIT_SKIP_ATA_ASSAULT=1 — recusado formatar exFAT (tela preta no PS2)."
+        )
+    fhdb_ok = probe_fhdb_installed(target)
+    ata_ok = probe_ata_assault_installed(target)
+    safe, msg = fhdb_exfat_boot_safe(
+        fhdb_installed=fhdb_ok,
+        ata_assault_installed=ata_ok,
+        format_exfat=True,
+        defer_exfat=False,
     )
+    if not safe:
+        raise ExfatBootSafetyError(
+            msg
+            or "exFAT bloqueado — veja specs/FHDB_OPL_BOOT.md e recover-first-boot."
+        )
 
 
 def install_ata_assault_sysconf(device: Path) -> FhdbPayloadResult:
@@ -150,12 +201,14 @@ def install_ata_assault_sysconf(device: Path) -> FhdbPayloadResult:
 
     shell = find_pfsshell()
     if shell is None:
-        return FhdbPayloadResult((), ("ATA-Assault: pfsshell em falta — drivers BDM não injectados.",))
+        raise PfsInitError(
+            "ATA-Assault: pfsshell em falta — obrigatório antes de exFAT no PS2."
+        )
 
     try:
         bundle = fetch_ata_assault_bundle()
     except OSError as exc:
-        return FhdbPayloadResult((), (f"ATA-Assault: {exc}",))
+        raise PfsInitError(f"ATA-Assault: {exc}") from exc
 
     with tempfile.TemporaryDirectory(prefix="pfs-batchkit-ata-assault-") as td:
         staging = Path(td) / "sysconf"

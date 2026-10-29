@@ -32,6 +32,13 @@ def format_exfat_region(
     if not image_path.is_file() and not is_raw_device(image_path):
         raise ExfatFormatError(f"not a hybrid image or raw block device: {image_path}")
 
+    from ..fhdb_bdm import ExfatBootSafetyError, assert_safe_to_format_exfat
+
+    try:
+        assert_safe_to_format_exfat(image_path)
+    except ExfatBootSafetyError as exc:
+        raise ExfatFormatError(str(exc)) from exc
+
     os_name = host_os()
     if os_name == "linux":
         from .exfat_linux import format_exfat_region as fmt

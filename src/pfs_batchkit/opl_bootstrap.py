@@ -208,16 +208,21 @@ def _ps2_device_checklist_text(fmcb_on_exfat: bool) -> str:
     return f"""PFS BatchKit — checklist no PS2 (FreeHDBoot + OPL exFAT)
 
 No PC este volume já tem:
-  • conf_opl.cfg (enable_bdm_hdd=1, hdd_mode=0, usb_mode=2 BDM)
-  • conf_apps.cfg (OPL Apps)
-  • Pastas CD/, DVD/, APPS/OPL/, …
+  • conf_opl.cfg (enable_bdm_hdd=1, hdd_mode=0, usb_mode=2 BDM) — só após format exFAT
+  • conf_apps.cfg (OPL Apps) — idem
+  • Pastas CD/, DVD/, APPS/OPL/, … — após format exFAT
+
+TELA PRETA no boot?
+  • Causa usual: exFAT formatado antes do Install FHDB (superblock + APA no mesmo ATA).
+  • No PC (HDD no adaptador): sudo pfs-batchkit recover-first-boot /dev/sdX --force
+  • Depois boot PS2 → wLaunchELF → Install FHDB → reinicie → format-exfat no PC.
 
 No PS2:
-1. Primeiro boot pode abrir wLaunchELF até existir osdmain.elf em __system (FHDB).
-2. Drivers ATA-Assault devem estar em __sysconf/FMCB/ (prepare BatchKit).
+1. Primeiro boot: wLaunchELF (até Install FHDB) — se tela preta, veja recover-first-boot acima.
+2. Drivers ATA-Assault devem estar em __sysconf/FMCB/ (prepare com init-pfs no PC).
 {fmcb}4. Reinicie → menu OSD FHDB.
-5. OPL: Settings → BDM HDD activo; jogos em mass:/CD e mass:/DVD.
+5. Só então format exFAT no PC se ainda não formatou (ou use OPL com BDM HDD).
 6. NÃO formate o HDD no wLaunchELF (Format/Expand).
 
-Pen USB exFAT: use MBR (não GPT); freeze no boot → ver specs/FHDB_FUNTUNA_PARITY.md.
+Pen USB exFAT: use MBR (não GPT); freeze no boot → specs/FHDB_FUNTUNA_PARITY.md.
 """

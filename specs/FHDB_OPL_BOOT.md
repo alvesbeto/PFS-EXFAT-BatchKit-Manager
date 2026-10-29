@@ -10,7 +10,7 @@ Layout **APA-Jail híbrido** (384 MiB + exFAT), não formatação APA completa
 | `wLaunchELF no exFAT` | (opcional USB) | `APPS/wLaunchELF/WLE-R3Z-DS34.ELF` + `LAUNCHELF.CNF` + entrada em `conf_apps.cfg` |
 | Magic APAJ + MBR 55 AA | Hack / imagem premade | `patch_apaj_and_mbr_entry` |
 | `__system` / `__sysconf` PFS | Format no PS2 ou NBD | `--init-pfs` (pfsshell mkfs) |
-| exFAT + pastas OPL | Transfer / format | **`--format-exfat`** (adiado por defeito até FHDB) + `write_opl_tree` |
+| exFAT + pastas OPL | Transfer / format | **`format-exfat`** após FHDB (prepare **não** mkfs por defeito) |
 | `conf_opl.cfg` BDM HDD | Manual no OPL | exFAT: chaves oficiais OPL (`enable_bdm_hdd`, `hdd_mode=0`, …) |
 | `conf_apps.cfg` | USB BatchKit | exFAT: OPL + **wLaunchELF R3Z** + FreeMcBoot (`mass:APPS/…`) |
 | `OPNPS2LD.ELF` | Manager / USB | **[Open-PS2-Loader `releases/latest`](https://github.com/ps2homebrew/Open-PS2-Loader/releases/latest)** (rolling dev build) → `APPS/OPL/` |
@@ -57,8 +57,9 @@ Com este projeto, após prepare:
 **PFS BatchKit (prepare-device):**
 
 1. Ordem: PFS → inject FHDB/HDD-OSD → **ATA-Assault** em `__sysconf/FMCB/USBD.IRX` + `USBHDFSD.IRX` → exFAT (se permitido).
-2. Por defeito o prepare **formata exFAT** (com pastas OPL e drivers ATA-Assault em `__sysconf` antes do mkfs).
-3. Opcional: `PFS_BATCHKIT_DEFER_EXFAT=1` ou `--defer-exfat` se quiser FHDB no PS2 antes do mkfs.
+2. Por defeito o prepare **não formata exFAT** (partição MBR reservada; superblock ausente até FHDB no PS2).
+3. **`pfs-batchkit format-exfat DISCO --force`** só corre com **osdmain.elf + ATA-Assault** (gate em código).
+4. Expert: `PFS_BATCHKIT_FORMAT_EXFAT_ON_PREPARE=1` + `--format-exfat` no prepare (ainda exige FHDB+ATA).
 
 Variáveis: `PFS_BATCHKIT_SKIP_ATA_ASSAULT`, `PFS_BATCHKIT_ATA_ASSAULT_DIR`, `PFS_BATCHKIT_DEFER_EXFAT=1`.
 

@@ -271,11 +271,16 @@ class PrepareOptionsPage(BatchKitWizardPage):
         layout = QVBoxLayout(self)
         self._init_pfs = QCheckBox("Inicializar PFS (__system, __sysconf)")
         self._init_pfs.setChecked(True)
-        self._format_exfat = QCheckBox("Formatar exFAT + biblioteca OPL (CD/, DVD/, APPS/, …)")
-        self._format_exfat.setChecked(True)
+        self._exfat_policy = QLabel(
+            "<b>exFAT / biblioteca OPL:</b> não são formatados neste passo (política anti tela preta). "
+            "Depois do <b>Install FHDB</b> no PS2 e reinício, use no PC: "
+            "<code>pfs-batchkit format-exfat /dev/sdX --force</code> "
+            "ou Modo avançado no assistente."
+        )
+        self._exfat_policy.setWordWrap(True)
         self._cfg_dev = QCheckBox("CFG-DEV em vez de CFG")
         layout.addWidget(self._init_pfs)
-        layout.addWidget(self._format_exfat)
+        layout.addWidget(self._exfat_policy)
         layout.addWidget(self._cfg_dev)
         self._pfs_only_hint = QLabel()
         self._pfs_only_hint.setWordWrap(True)
@@ -284,11 +289,8 @@ class PrepareOptionsPage(BatchKitWizardPage):
 
         layout.addWidget(
             QLabel(
-                "<small><b>Tela preta no PS2?</b> FreeHDBoot + exFAT formatado no mesmo HDD "
-                "trava sem drivers ATA-Assault em __sysconf. O prepare injecta ATA-Assault "
-                "antes do exFAT; se tiver <code>HDD-OSD/__system</code> (osdmain.elf), "
-                "confira no log «ATA-Assault» OK. Disco já gravado: reprepare com "
-                "<code>PFS_BATCHKIT_DEFER_EXFAT=1</code> ou veja specs/FHDB_OPL_BOOT.md.</small>"
+                "<small>O prepare injecta <b>ATA-Assault</b> em __sysconf/FMCB/ (obrigatório). "
+                "Tela preta? <code>pfs-batchkit recover-first-boot DISCO --force</code></small>"
             )
         )
         layout.addWidget(
@@ -309,7 +311,7 @@ class PrepareOptionsPage(BatchKitWizardPage):
     def initializePage(self) -> None:
         pfs_only = self._state.mode == WizardMode.PREPARE_PFS
         self._pfs_only_hint.setVisible(pfs_only)
-        self._format_exfat.setVisible(not pfs_only)
+        self._exfat_policy.setVisible(not pfs_only)
         if pfs_only:
             self.setTitle("Atualizar PFS (FHDB / menu OSD / OPL)")
             self.setSubTitle(
@@ -322,10 +324,9 @@ class PrepareOptionsPage(BatchKitWizardPage):
             )
             self._init_pfs.setChecked(True)
             self._init_pfs.setEnabled(False)
-            self._format_exfat.setChecked(False)
         else:
             self.setTitle("Opções de preparo")
-            self.setSubTitle("PFS + exFAT + pastas OPL na raiz do volume.")
+            self.setSubTitle("Boot APA + PFS + ATA-Assault — exFAT só depois do FHDB no PS2.")
             self._init_pfs.setEnabled(True)
 
     def nextId(self) -> int:
@@ -334,9 +335,9 @@ class PrepareOptionsPage(BatchKitWizardPage):
     def validatePage(self) -> bool:
         pfs_only = self._state.mode == WizardMode.PREPARE_PFS
         self._state.init_pfs = True if pfs_only else self._init_pfs.isChecked()
-        self._state.format_exfat = False if pfs_only else self._format_exfat.isChecked()
-        self._state.scaffold_opl = self._state.format_exfat
-        self._state.defer_exfat_format = pfs_only or False
+        self._state.format_exfat = False
+        self._state.defer_exfat_format = True
+        self._state.scaffold_opl = False
         self._state.cfg_dev = self._cfg_dev.isChecked()
         mbr = Path(self._mbr.text()).expanduser()
         if not pfs_only:
@@ -353,13 +354,12 @@ class PrepareOptionsPage(BatchKitWizardPage):
                 return False
         self._state.reference_mbr = mbr
         if not pfs_only and (
-            not self._init_pfs.isChecked() or not self._format_exfat.isChecked()
+            not self._init_pfs.isChecked()
         ):
             reply = QMessageBox.question(
                 self,
                 "Boot PS2",
-                "Para boot FHDB + OPL BDM como o BatchKit Manager, mantenha "
-                "PFS + exFAT/OPL activos. Continuar mesmo assim?",
+                "Recomendado: PFS + ATA-Assault no prepare. Continuar sem init-pfs?",
             )
             if reply != QMessageBox.StandardButton.Yes:
                 return False

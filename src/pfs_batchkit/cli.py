@@ -104,6 +104,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not create OPL folder tree after format",
     )
+    fmt.add_argument(
+        "--force",
+        action="store_true",
+        help="Obrigatório em disco físico; só formata se FHDB + ATA-Assault presentes",
+    )
 
     opl = sub.add_parser(
         "scaffold-opl",
@@ -155,12 +160,15 @@ def main(argv: list[str] | None = None) -> int:
     prep.add_argument(
         "--format-exfat",
         action="store_true",
-        help="Format exFAT on the rest of the disk (+ OPL folders)",
+        help=(
+            "Só com PFS_BATCHKIT_FORMAT_EXFAT_ON_PREPARE=1 e FHDB+ATA-Assault no disco; "
+            "caso normal: format-exfat após Install FHDB no PS2"
+        ),
     )
     prep.add_argument(
         "--defer-exfat",
         action="store_true",
-        help="Skip mkfs.exFAT during prepare (FHDB on PS2 first; default formats exFAT)",
+        help="Ignorado se FORMAT_EXFAT_ON_PREPARE não estiver activo (exFAT adiado por defeito)",
     )
     prep.add_argument(
         "--no-opl-scaffold",
@@ -175,6 +183,16 @@ def main(argv: list[str] | None = None) -> int:
     prep.add_argument("--volume-label", default=DEFAULT_VOLUME_LABEL)
     prep.add_argument("--pfsshell", type=Path)
     prep.add_argument("--force", action="store_true")
+
+    recover = sub.add_parser(
+        "recover-first-boot",
+        help=(
+            "Apaga superblock exFAT (tela preta antes do wLaunchELF/FHDB) — "
+            "não altera APA/PFS"
+        ),
+    )
+    recover.add_argument("device", type=Path)
+    recover.add_argument("--force", action="store_true", required=True)
 
     prep_pfs = sub.add_parser(
         "prepare-pfs",
@@ -282,6 +300,18 @@ def main(argv: list[str] | None = None) -> int:
         return code
 
     if args.command == "format-exfat":
+        from .image_io import is_raw_device
+        from .host.privileges import grant_destructive_write_in_process
+
+        if is_raw_device(args.image) and not args.force:
+            print(
+                "format-exfat em disco físico exige --force. "
+                "Só funciona após Install FHDB + ATA-Assault no disco.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.force:
+            grant_destructive_write_in_process()
         code, lines = run_format_exfat(
             args.image,
             size_gib=args.size_gib,
@@ -358,6 +388,17 @@ def main(argv: list[str] | None = None) -> int:
                 "--exfat-mount <raiz exFAT> --expect-exfat",
             )
         return outcome.exit_code
+
+    if args.command == "recover-first-boot":
+        from .image_io import wipe_exfat_region_header
+
+        try:
+            for line in wipe_exfat_region_header(args.device, force=args.force):
+                print(line)
+        except (ValueError, RuntimeError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        return 0
 
     if args.command == "prepare-pfs":
         from .disks import format_disk_listing, list_physical_disks, resolve_disk_selection

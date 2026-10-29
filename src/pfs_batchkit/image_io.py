@@ -137,6 +137,47 @@ def write_boot_region_to_device(
     return layout
 
 
+def wipe_exfat_region_header(
+    device: Path,
+    *,
+    force: bool = False,
+    wipe_bytes: int = 8 * 1024 * 1024,
+) -> tuple[str, ...]:
+    """
+    Zero the start of the exFAT LBA slice (removes superblock/VBR).
+
+    Use when the PS2 shows a black screen before wLaunchELF/FHDB after exFAT was
+    formatted too early — APA boot + exFAT metadata without the right BDM stack.
+    Does not touch APA __mbr / PFS.
+    """
+    if not is_raw_device(device):
+        raise ValueError(f"not a raw block device: {device}")
+    assert_destructive_write(force=force)
+    layout = plan_layout(device_size_bytes(device))
+    start = layout.exfat_start_sector * apa.APA_SECTOR_SIZE
+    chunk = min(wipe_bytes, layout.exfat_sector_count * apa.APA_SECTOR_SIZE)
+    if chunk <= 0:
+        raise ValueError("no exFAT region on device")
+    fd = os.open(device, os.O_RDWR)
+    try:
+        remaining = chunk
+        off = start
+        zero = b"\0" * (1024 * 1024)
+        while remaining > 0:
+            n = min(len(zero), remaining)
+            os.pwrite(fd, zero[:n], off)
+            off += n
+            remaining -= n
+    finally:
+        os.close(fd)
+    return (
+        f"Região exFAT: apagados {chunk} bytes a partir do setor "
+        f"{layout.exfat_start_sector} (superblock/VBR).",
+        "Tente boot no PS2 → wLaunchELF → Install FHDB; depois format-exfat no PC.",
+        "Mantenha ATA-Assault em __sysconf/FMCB/ (prepare com init-pfs).",
+    )
+
+
 def write_image_file(output: Path, data: bytes) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("wb") as f:

@@ -60,7 +60,9 @@ pfs-batchkit list-disks
 
 pfs-batchkit doctor
 
-sudo pfs-batchkit prepare-device --pick 1 --init-pfs --format-exfat --force
+sudo pfs-batchkit prepare-device --pick 1 --init-pfs --force
+# Depois do Install FHDB no PS2:
+sudo pfs-batchkit format-exfat /dev/sdX --force
 ```
 
 Ou assistente gráfico:
@@ -100,8 +102,8 @@ sudo pfs-batchkit prepare-pfs --pick 1 --force
 Exemplo imagem offline:
 
 ```bash
-pfs-batchkit build-image --size-gib 500 --output ~/ps2-hdd.img \
-  --init-pfs --format-exfat
+pfs-batchkit build-image --size-gib 500 --output ~/ps2-hdd.img --init-pfs
+# exFAT na imagem só após FHDB+ATA no destino: format-exfat
 ```
 
 ## pfsshell com `mkfs`

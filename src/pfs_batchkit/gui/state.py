@@ -44,9 +44,9 @@ class WizardState:
     selected_disk: PhysicalDisk | None = None
     reference_mbr: Path = Path("/tmp/pfs-batchkit/mbr.img")
     init_pfs: bool = True
-    format_exfat: bool = True
+    format_exfat: bool = False
     scaffold_opl: bool = True
-    defer_exfat_format: bool = False
+    defer_exfat_format: bool = True
     cfg_dev: bool = False
     sudo_password: str = ""
 
