@@ -1,168 +1,176 @@
-# PFS BatchKit (Python)
+# PFS-EXFAT BatchKit
 
-Ferramenta para preparar um HDD de PS2 em layout **híbrido APA-Jail**: região APA mínima para **FreeHDBoot** (384 MiB) e o restante em **exFAT** com a árvore de pastas do **Open PS2 Loader**.
+Ferramenta em **Python** (Linux, macOS, Windows) para preparar um HDD de PlayStation 2 no layout **híbrido APA-Jail + exFAT**: região APA mínima (~384 MiB) para **FreeHDBoot** / PFS e o restante do disco em **exFAT** com biblioteca **Open PS2 Loader** (BDM HDD), pastas oficiais e configs prontas.
 
-Inspirado no fluxo do [PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager), mas focado no layout boot + exFAT em vez de formatação APA completa no PC.
+Inspirado no fluxo do [PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager), com foco explícito em **boot FHDB + jogos exFAT no mesmo disco**, sem formatação APA completa no PC como a opção clássica do Manager.
+
+Os comandos instalados mantêm o nome histórico **`pfs-batchkit`** / **`pfs-batchkit-ui`** (pacote Python `pfs-batchkit`).
+
+## O que este projeto faz
+
+| Área | Comportamento |
+|------|----------------|
+| **Layout** | MBR tipo 0x07 (exFAT), magic APAJ, região APA-Jail + partição de jogos até o último setor |
+| **Boot `__mbr`** | `mbr.img` do Manager + KELF MBR; por defeito **[wLaunchELF R3Z](https://github.com/saildot4k/wLaunchELF_R3Z)** (`WLE-R3Z-DS34.ELF`) com suporte **ata:/ exFAT** (requer `PS2KEYS.dat` + `kelftool`) |
+| **PFS** | `mkfs` em `__system` / `__sysconf` via **pfsshell** (patch `mkfs` incluído) |
+| **FHDB / OSD** | Inject de `HDD-OSD/__system` no PC se existir clone do Manager; senão **FMCBInstaller** no PS2 |
+| **exFAT + OPL** | `mkfs.exfat`, árvore `CD/`, `DVD/`, `APPS/`, …, `conf_opl.cfg` (BDM HDD), `conf_apps.cfg`, download de **OPNPS2LD.ELF** |
+| **wLaunchELF no volume** | `APPS/wLaunchELF/` + `LAUNCHELF.CNF` no exFAT |
+| **Estabilidade FHDB+exFAT** | Drivers **ATA-Assault** em `__sysconf/FMCB/` antes de formatar exFAT (evita freeze no boot) |
+
+Documentação detalhada:
+
+- [specs/FHDB_OPL_BOOT.md](specs/FHDB_OPL_BOOT.md) — boot, FHDB, variáveis  
+- [specs/OPL_EXFAT_COMPAT.md](specs/OPL_EXFAT_COMPAT.md) — BDM, APA-Jail, armadilhas  
+- [specs/OPL_FOLDER_LAYOUT.md](specs/OPL_FOLDER_LAYOUT.md) — pastas na raiz exFAT  
+- [specs/CROSS_PLATFORM.md](specs/CROSS_PLATFORM.md) — requisitos por SO  
+- [specs/DEVICE_READINESS.md](specs/DEVICE_READINESS.md) — `doctor` / `verify-device`  
+- [specs/GUI_WIZARD.md](specs/GUI_WIZARD.md) — assistente Qt  
 
 ## Requisitos
 
-- Python 3.11+
+- **Python 3.11+**
 - **Linux:** sudo/root + `exfatprogs` (`losetup`, `mkfs.exfat`, `mount`)
-- **macOS:** sudo/admin + `hdiutil`/`diskutil` (opcional: `brew install exfatprogs`)
-- **Windows:** terminal **Administrador** + `diskpart` (format exFAT nativo)
-- **pfsshell** com `mkfs` em todas as plataformas (`PFS_BATCHKIT_PFSSHELL` ou ao lado do `.exe`)
-- **FMCBInstaller.elf** — copiado para `APPS/FreeMcBoot/` se `PFS_BATCHKIT_FMCB_INSTALLER` ou clone do Manager; senão, uma vez no PS2 (ver [specs/FHDB_OPL_BOOT.md](specs/FHDB_OPL_BOOT.md))
-
-Spec completa: [specs/CROSS_PLATFORM.md](specs/CROSS_PLATFORM.md) · Boot FHDB+OPL: [specs/FHDB_OPL_BOOT.md](specs/FHDB_OPL_BOOT.md) · OPL/exFAT: [specs/OPL_EXFAT_COMPAT.md](specs/OPL_EXFAT_COMPAT.md)
+- **macOS:** sudo/admin + `hdiutil` / `diskutil` (opcional: `brew install exfatprogs`)
+- **Windows:** terminal **Administrador** + `diskpart` (exFAT nativo)
+- **pfsshell** com comando `mkfs` — [build local](#pfsshell-com-mkfs) ou `PFS_BATCHKIT_PFSSHELL`
+- **PS2KEYS.dat** — KELF MBR R3Z (home ou `PFS_BATCHKIT_PS2KEYS`; também no clone Manager `BAT/`)
+- **FMCBInstaller.elf** — opcional no PC (`PFS_BATCHKIT_FMCB_INSTALLER` ou `tools/bundled/`); senão uma vez no PS2 ([FHDB_OPL_BOOT.md](specs/FHDB_OPL_BOOT.md))
 
 ## Instalação (desenvolvimento)
 
 ```bash
-cd "/home/beto/Documentos/dev/Repositorios/PFS BatchKit"
+git clone <url-do-repositorio>
+cd PFS-EXFAT-BatchKit   # nome da pasta local
+
+# com uv (recomendado)
+uv venv .venv
+uv pip install -e ".[dev,gui]"
+
+# ou pip
 python3 -m pip install -e ".[dev,gui]"
 ```
 
-## Assistente gráfico (Qt)
+## Fluxo recomendado: disco físico
 
-Instalador passo a passo (Linux, Windows, macOS) — substitui o menu Textual:
-
-```bash
-python3 -m pip install -e ".[gui]"
-pfs-batchkit-ui
-# ou: pfs-batchkit ui
-```
-
-Etapas: escolha a **tarefa** na primeira tela (preparar disco, validar `.img`, modo avançado).
-
-**Linux:** prefira `sudo ./pfs-batchkit-ui` ou informe a senha sudo na etapa de opções.
-
-Detalhes: [specs/GUI_WIZARD.md](specs/GUI_WIZARD.md)
-
-## CLI avançada (imagem .img, validação)
-
-### pfsshell com comando `mkfs`
-
-O upstream do pfsshell não expõe `mkfs`; este repo inclui um patch:
+Como no Manager: liste discos, confira **modelo e tamanho**, escolha pelo índice **`[N]`**. Discos com `/`, `/boot` ou `/home` montados são recusados.
 
 ```bash
-# pfsshell (uma vez; usa Flatpak SDK se meson não estiver no host)
-chmod +x tools/build_pfsshell.sh
-./tools/build_pfsshell.sh   # → tools/bin/pfsshell
-```
+pfs-batchkit list-disks
 
-Ou defina `PFS_BATCHKIT_PFSSHELL=/caminho/pfsshell`.
-
-## Fluxo completo (imagem)
-
-```bash
-sudo env PYTHONPATH=src python3 -m pfs_batchkit.cli build-image \
-  --size-gib 500 \
-  --output ps2-hdd.img \
-  --reference-mbr /tmp/pfs-batchkit/mbr.img \
-  --init-pfs \
-  --format-exfat
-```
-
-- **`--init-pfs`**: PFS vazio em `__system` e `__sysconf` via `tools/bin/pfsshell` (sem root em arquivos `.img`)
-- **`--format-exfat`**: exFAT + pastas OPL (`DVD/`, `CD/`, …)
-
-Comandos separados:
-
-```bash
-sudo env PYTHONPATH=src python3 -m pfs_batchkit.cli init-pfs ps2-hdd.img
-sudo env PYTHONPATH=src python3 -m pfs_batchkit.cli format-exfat ps2-hdd.img
-```
-
-Pastas OPL num exFAT já montado:
-
-```bash
-pfs-batchkit scaffold-opl /mnt/PS2OPL
-```
-
-Validar imagem antes de gravar no disco (OPL BDM + exFAT):
-
-```bash
 pfs-batchkit doctor
-pfs-batchkit validate-opl-layout ps2-hdd.img
-pfs-batchkit validate-opl-layout ps2-hdd.img --require-exfat --strict
+
+sudo pfs-batchkit prepare-device --pick 1 --init-pfs --format-exfat --force
 ```
 
-Antes de gravar no HDD PS2, rode **`doctor`** (pfsshell, ATA-Assault, HDD-OSD/FMCBInstaller). Após **`prepare-device`**, o fluxo imprime **Verificação dispositivo (PS2)**; opcional:
+Ou assistente gráfico:
+
+```bash
+pfs-batchkit-ui
+# Linux: sudo pfs-batchkit-ui  (ou senha sudo no wizard)
+```
+
+Após o prepare, opcional:
 
 ```bash
 pfs-batchkit verify-device /dev/sdX --exfat-mount /mnt/PS2OPL --expect-exfat
 ```
 
-## Executável (PyInstaller)
+No PS2: leia `LEIA-ME_PS2_BOOT.txt` na raiz exFAT. Primeiro boot pode abrir **wLaunchELF** até instalar FHDB (`APPS/FreeMcBoot/FMCBInstaller.elf` → Install FHDB). **Não** use Format/Expand no HDD Manager do wLaunchELF.
 
-Gere binários **no sistema alvo** (Linux, Windows ou macOS):
+### Atualizar só PFS (manter jogos exFAT)
 
-```bash
-./packaging/build.sh
-# dist/pfs-batchkit      — CLI
-# dist/pfs-batchkit-ui   — assistente Qt
-# dist/pfsshell          — copiado se tools/bin/pfsshell existir
-```
-
-O script cria `.venv` com `uv` se necessário e instala `[build,gui]`.
-
-**Tempo:** o `pfs-batchkit-ui` puxa **PySide6 inteiro** (`collect_all`) — espere vários minutos na primeira vez. Rebuilds são mais rápidos **sem** `--clean`. Para iterar na UI, use `pip install -e ".[gui]"` e `pfs-batchkit-ui` (sem PyInstaller).
-
-```bash
-./packaging/build.sh              # CLI + GUI (incremental)
-./packaging/build.sh --cli-only   # só CLI (~rápido)
-./packaging/build.sh --fast        # só GUI (quando já tem CLI no venv)
-./packaging/build.sh --parallel    # CLI + GUI em paralelo
-./packaging/build.sh --clean       # rebuild total (lento; use só se quebrar cache)
-```
-
-CI gera binários para Linux, macOS e Windows (ver `.github/workflows/build.yml` e [packaging/BUILD_ALL.md](packaging/BUILD_ALL.md)).
-
-Build local (só o OS atual):
-
-```bash
-./packaging/build-native-release.sh
-# → dist/releases/linux-x86_64/  (no Linux)
-```
-
-## Gravar disco físico
-
-**Fluxo recomendado:** preparar **direto no disco** (`prepare-device`) — o app lê o tamanho real, grava a região APA (384 MiB) com MBR/exFAT até o último setor, e opcionalmente roda PFS + exFAT. A imagem `.img` serve só para **backup** ou **validação offline** (`build-image` + `validate-opl-layout`), não para clonar 500 GiB no disco.
-
-Como no [PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager): liste os discos, confira **modelo/tamanho**, escolha pelo **índice `[N]`**.
-
-```bash
-pfs-batchkit list-disks
-
-# Preparar in-place (Linux) — como root OU senha na GUI
-sudo ./pfs-batchkit-ui
-# ou, no terminal:
-sudo pfs-batchkit prepare-device --pick 1 --init-pfs --format-exfat --force
-```
-
-**Actualizar menu OSD / FreeHDBoot / OPL (PFS) sem apagar jogos exFAT:**
+Reformata `__system` / `__sysconf`, reinjecta FHDB/OPL/ATA-Assault **sem** apagar a partição exFAT:
 
 ```bash
 sudo pfs-batchkit prepare-pfs --pick 1 --force
 ```
 
-Na UI: tarefa **«Atualizar só PFS (FHDB/OSD/OPL) — manter exFAT/jogos»**. Requer `HDD-OSD/__system` do clone Manager (ou `PFS_BATCHKIT_FHDB_PAYLOAD`).
+## CLI — outros comandos
 
-Na **TUI**: *Preparar disco físico* (ou tecla correspondente no menu).
+| Comando | Uso |
+|---------|-----|
+| `build-image` | Imagem `.img` para backup/validação (não clonar 500 GiB no disco) |
+| `init-pfs` / `format-exfat` | Passos isolados numa imagem existente |
+| `scaffold-opl` | Pastas OPL num exFAT já montado |
+| `validate-opl-layout` | MBR/APAJ/exFAT antes de gravar |
+| `doctor` | Dependências no PC |
+| `verify-device` | Checklist pós-prepare |
 
-Discos com montagem em `/`, `/boot` ou `/home` são **recusados** automaticamente.
+Exemplo imagem offline:
+
+```bash
+pfs-batchkit build-image --size-gib 500 --output ~/ps2-hdd.img \
+  --init-pfs --format-exfat
+```
+
+## pfsshell com `mkfs`
+
+O upstream do pfsshell não expõe `mkfs`; este repositório inclui `tools/pfsshell-mkfs.patch`:
+
+```bash
+chmod +x tools/build_pfsshell.sh
+./tools/build_pfsshell.sh   # → tools/bin/pfsshell
+```
+
+## Variáveis de ambiente (seleção)
+
+| Variável | Efeito |
+|----------|--------|
+| `PFS_BATCHKIT_PFSSHELL` | Caminho do pfsshell |
+| `PFS_BATCHKIT_MANAGER_ROOT` | Clone [PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager) (`HDD-OSD/`, `BAT/`) |
+| `PFS_BATCHKIT_FMCB_INSTALLER` | `FMCBInstaller.elf` |
+| `PFS_BATCHKIT_BOOT_KELF` / `PFS_BATCHKIT_SKIP_BOOT_KELF` | KELF MBR custom ou não injectar |
+| `PFS_BATCHKIT_WLAUNCHELF_EXFAT=0` | Usar `BAT/boot.kelf` do Manager (sem R3Z ata exFAT) |
+| `PFS_BATCHKIT_WLAUNCHELF_LATEST=1` | ps2homebrew latest em vez de R3Z |
+| `PFS_BATCHKIT_DEFER_EXFAT=1` | Não formatar exFAT no prepare (FHDB no PS2 antes) |
+| `PFS_BATCHKIT_PRESERVE_OPL_CFG` | Não sobrescrever `conf_opl.cfg` / `conf_apps.cfg` no exFAT |
+
+Lista completa: [specs/FHDB_OPL_BOOT.md](specs/FHDB_OPL_BOOT.md).
+
+## Executáveis (PyInstaller)
+
+Gere binários **no sistema alvo**:
+
+```bash
+./packaging/build.sh
+# dist/pfs-batchkit      — CLI
+# dist/pfs-batchkit-ui   — assistente Qt
+# dist/pfsshell          — se tools/bin/pfsshell existir
+```
+
+Opções: `--cli-only`, `--gui-only`, `--fast`, `--parallel`, `--clean`. CI e releases: [packaging/BUILD_ALL.md](packaging/BUILD_ALL.md), `.github/workflows/build.yml`.
+
+Build local em `dist/releases/<plataforma>/`:
+
+```bash
+./packaging/build-native-release.sh
+```
 
 ## Testes
 
 ```bash
-PYTHONPATH=src python3 tests/run_manual.py
-PYTHONPATH=src python3 tests/test_host.py
-PYTHONPATH=src python3 tests/test_opl_validate.py
+uv run pytest
+# ou
+PYTHONPATH=src python3 -m pytest
 ```
 
-## Limitações (v0.4)
+Testes manuais (referência `mbr.img` em `/tmp/pfs-batchkit/`):
 
-- UI: menu TUI (Textual); não é GUI Windows como o BatchKit original
-- PFS: pfsshell com patch `mkfs` (build Linux no repo; Win/mac via release ou build local)
-- exFAT: backends por OS (ver spec); teste real em macOS/Windows recomendado antes de produção
-- PyInstaller: um binário **por** OS (CI em `.github/workflows/build.yml`)
+```bash
+PYTHONPATH=src python3 tests/run_manual.py
+```
+
+## Limitações e avisos
+
+- Binários **Sony/FHDB** não são redistribuídos; use pasta `HDD-OSD` do Manager ou FMCBInstaller no PS2.
+- `--init-pfs` **apaga** FHDB já presente em `__system` até repetir install ou restaurar payload.
+- exFAT + FHDB no mesmo disco exige ordem correta (PFS → FHDB → ATA-Assault → exFAT); ver [OPL_EXFAT_COMPAT.md](specs/OPL_EXFAT_COMPAT.md).
+- Imagens `.img` grandes são artefactos locais (ver `.gitignore`); o fluxo principal é **`prepare-device`**.
+
+## Créditos
+
+- [PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager) — layout e fluxo de referência  
+- [Open-PS2-Loader](https://github.com/ps2homebrew/Open-PS2-Loader), [pfsshell](https://github.com/ps2homebrew/pfsshell), [wLaunchELF_R3Z](https://github.com/saildot4k/wLaunchELF_R3Z)  
+
+Licença: ver ficheiros `COPYING` / cabeçalhos dos componentes nativos (pfsshell) e dependências upstream.
