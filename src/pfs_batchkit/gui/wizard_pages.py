@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import __version__
-from ..disks import PhysicalDisk, list_physical_disks
+from ..disks import PhysicalDisk, is_likely_system_disk, list_physical_disks
 from ..host.detect import host_os
 from ..host.privileges import effective_user_home, elevation_hint_short
 from ..host.runner import is_admin
@@ -171,11 +171,41 @@ class DiskSelectPage(BatchKitWizardPage):
         self._disks: list[PhysicalDisk] = []
 
     def initializePage(self) -> None:
-        self.setSubTitle("HDD PS2 — operação destrutiva.")
+        self.setSubTitle(
+            "HDD PS2 por USB/SATA — não escolha /dev/sda se for o SSD/NVMe do Linux."
+        )
         self._refresh_disks()
 
     def nextId(self) -> int:
         return int(PageId.PREPARE_OPTIONS)
+
+    def validatePage(self) -> bool:
+        disk = self._state.selected_disk
+        if disk is None:
+            QMessageBox.warning(self, "Disco", "Selecione um disco da lista ou informe o caminho.")
+            return False
+        if is_likely_system_disk(disk.path):
+            QMessageBox.critical(
+                self,
+                "Disco do sistema",
+                f"Isto parece o disco onde o Linux está instalado:\n\n{disk.summary_line()}\n\n"
+                "Conecte o HDD do PS2 (adaptador USB) e escolha o outro dispositivo — "
+                "geralmente /dev/sdb ou um disco «removable».",
+            )
+            return False
+        return True
+
+    def _default_disk_row(self) -> int:
+        for i, d in enumerate(self._disks):
+            if d.ps2_hdd:
+                return i
+        for i, d in enumerate(self._disks):
+            if "system disk" not in d.notes.lower() and "removable" in d.notes.lower():
+                return i
+        for i, d in enumerate(self._disks):
+            if "system disk" not in d.notes.lower():
+                return i
+        return 0
 
     def _refresh_disks(self) -> None:
         self._list.clear()
@@ -185,7 +215,11 @@ class DiskSelectPage(BatchKitWizardPage):
             item.setData(Qt.ItemDataRole.UserRole, d)
             self._list.addItem(item)
         if self._list.count():
-            self._list.setCurrentRow(0)
+            row = self._default_disk_row()
+            self._list.setCurrentRow(row)
+            item = self._list.item(row)
+            if item:
+                self._on_selection(item, None)
 
     def _on_selection(self, current: QListWidgetItem | None, _prev) -> None:
         if not current:

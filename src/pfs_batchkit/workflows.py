@@ -24,7 +24,7 @@ from .image_io import (
     is_raw_device,
     write_boot_region_to_device,
 )
-from .layout import HybridLayout, plan_layout
+from .layout import HybridLayout, plan_layout, plan_layout_placeholder
 from .opl import write_opl_tree
 from .pfs_boot import (
     PfsInitError,
@@ -180,14 +180,52 @@ def run_scaffold_opl(mount_point: Path, *, cfg_dev: bool = False) -> tuple[int, 
 
 
 def _reject_system_disk(device: Path) -> tuple[int, list[str]] | None:
-    from .disks import list_physical_disks
+    from .disks import is_likely_system_disk, list_physical_disks
 
+    if not is_likely_system_disk(device):
+        return None
     for d in list_physical_disks():
-        if d.path == device and "system disk" in d.notes.lower():
-            return 2, [
-                "Recusado: o dispositivo parece ser o disco do sistema.",
-                d.summary_line(),
-            ]
+        if d.path == device:
+            line = d.summary_line()
+            break
+    else:
+        line = str(device)
+    return 2, [
+        "Recusado: este dispositivo é o disco do sistema Linux (ex. /dev/sda).",
+        "Ligue o HDD PS2 por USB/SATA e escolha outro dispositivo (ex. /dev/sdb).",
+        line,
+    ]
+
+
+def _validate_hybrid_layout_size(
+    device: Path,
+    *,
+    known_size_bytes: int | None,
+    sudo_password: str | None,
+) -> str | None:
+    """Return user-facing error, or None if size OK / validated later as root."""
+    from .host.runner import is_admin
+
+    if known_size_bytes and known_size_bytes > 0:
+        try:
+            plan_layout(known_size_bytes)
+        except ValueError as exc:
+            return str(exc)
+        return None
+
+    if sudo_password and not is_admin():
+        return None
+
+    if not is_admin():
+        return (
+            f"Sem permissão para ler {device}. Informe a senha sudo nesta etapa "
+            "ou execute: sudo pfs-batchkit-ui"
+        )
+
+    try:
+        plan_layout(device_size_bytes(device))
+    except (ValueError, OSError) as exc:
+        return str(exc)
     return None
 
 
@@ -206,6 +244,7 @@ def run_prepare_device(
     cfg_dev: bool = False,
     defer_exfat_format: bool | None = None,
     pfs_only: bool = False,
+    known_size_bytes: int | None = None,
 ) -> BuildImageOutcome:
     """Prepare hybrid layout in-place on a physical disk (real size, no .img step).
 
@@ -223,13 +262,26 @@ def run_prepare_device(
     blocked = _reject_system_disk(device)
     if blocked is not None:
         return BuildImageOutcome(
-            layout=plan_layout(384 * 1024**2),
+            layout=plan_layout_placeholder(),
             messages=blocked[1],
             exit_code=blocked[0],
         )
 
     from .host.privileges import invoke_cli_elevated
     from .host.runner import is_admin
+
+    if not pfs_only:
+        size_err = _validate_hybrid_layout_size(
+            device,
+            known_size_bytes=known_size_bytes,
+            sudo_password=sudo_password,
+        )
+        if size_err:
+            return BuildImageOutcome(
+                layout=plan_layout_placeholder(),
+                messages=[f"Disco inválido para layout híbrido: {size_err}"],
+                exit_code=2,
+            )
 
     if sudo_password and not is_admin():
         ref = resolve_reference_mbr(reference_mbr)
@@ -265,14 +317,14 @@ def run_prepare_device(
             if not out_lines:
                 out_lines = [f"sudo/prepare-device falhou (código {proc.returncode})"]
             return BuildImageOutcome(
-                layout=plan_layout(384 * 1024**2),
+                layout=plan_layout_placeholder(),
                 messages=out_lines,
                 exit_code=2 if proc.returncode != 0 else 0,
             )
         try:
             layout = plan_layout(device_size_bytes(device))
         except (ValueError, OSError):
-            layout = plan_layout(384 * 1024**2)
+            layout = plan_layout_placeholder()
         from .opl_mount import parse_opl_mount_message
 
         opl_mount: Path | None = None
@@ -295,7 +347,7 @@ def run_prepare_device(
         messages.extend(format_doctor_report(host_doc))
         if not host_doc.ok:
             return BuildImageOutcome(
-                layout=plan_layout(384 * 1024**2),
+                layout=plan_layout_placeholder(),
                 messages=messages,
                 exit_code=2,
             )
@@ -306,7 +358,7 @@ def run_prepare_device(
             layout = plan_layout(device_size_bytes(device))
         except (ValueError, OSError) as exc:
             return BuildImageOutcome(
-                layout=plan_layout(384 * 1024**2),
+                layout=plan_layout_placeholder(),
                 messages=[f"Não foi possível ler tamanho do disco: {exc}"],
                 exit_code=2,
             )
@@ -326,7 +378,11 @@ def run_prepare_device(
             try:
                 fallback_size = device_size_bytes(device)
             except (ValueError, OSError):
-                fallback_size = 384 * 1024**2
+                return BuildImageOutcome(
+                    layout=plan_layout_placeholder(),
+                    messages=[f"Não foi possível obter mbr.img (boot FHDB): {exc}"],
+                    exit_code=2,
+                )
             return BuildImageOutcome(
                 layout=plan_layout(fallback_size),
                 messages=[f"Não foi possível obter mbr.img (boot FHDB): {exc}"],
@@ -342,7 +398,11 @@ def run_prepare_device(
                 try:
                     fallback_size = device_size_bytes(device)
                 except (ValueError, OSError):
-                    fallback_size = 384 * 1024**2
+                    return BuildImageOutcome(
+                        layout=plan_layout_placeholder(),
+                        messages=[f"Não foi possível preparar boot KELF wLaunchELF: {exc}"],
+                        exit_code=2,
+                    )
                 return BuildImageOutcome(
                     layout=plan_layout(fallback_size),
                     messages=[f"Não foi possível preparar boot KELF wLaunchELF: {exc}"],
@@ -360,7 +420,11 @@ def run_prepare_device(
             try:
                 fallback_size = device_size_bytes(device)
             except (ValueError, OSError):
-                fallback_size = 384 * 1024**2
+                return BuildImageOutcome(
+                    layout=plan_layout_placeholder(),
+                    messages=[str(exc)],
+                    exit_code=2,
+                )
             return BuildImageOutcome(
                 layout=plan_layout(fallback_size),
                 messages=[str(exc)],

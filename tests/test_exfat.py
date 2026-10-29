@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from pfs_batchkit.exfat import exfat_region_bytes
-from pfs_batchkit.layout import plan_layout
+from pfs_batchkit.layout import plan_layout, plan_layout_placeholder
 
 
 def test_exfat_offset_1gib():
@@ -19,6 +19,18 @@ def test_exfat_offset_1gib():
     assert size == layout.exfat_sector_count * 512
     assert off == 384 * 1024 * 1024
     assert off + size == layout.total_bytes
+
+
+def test_plan_layout_placeholder_valid() -> None:
+    layout = plan_layout_placeholder()
+    assert layout.exfat_sector_count >= 2048
+
+
+def test_plan_layout_rejects_boot_only_size() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="exFAT"):
+        plan_layout(384 * 1024**2)
 
 
 if __name__ == "__main__":

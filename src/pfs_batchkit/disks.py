@@ -40,9 +40,10 @@ class PhysicalDisk:
     def summary_line(self) -> str:
         ps2 = " [PS2 HDD hdl_dump]" if self.ps2_hdd else ""
         mounts = f" mounted:{','.join(self.mountpoints)}" if self.mountpoints else ""
+        warn = " ⚠ DISCO DO SISTEMA — não use" if "system disk" in self.notes.lower() else ""
         return (
             f"[{self.index}] {self.path} — {self.model or 'unknown model'} "
-            f"({self.size_gib:.2f} GiB){ps2}{mounts}"
+            f"({self.size_gib:.2f} GiB){ps2}{warn}{mounts}"
         )
 
 
@@ -83,6 +84,78 @@ def _hdl_dump_ps2_map() -> dict[int, str]:
     return mapping
 
 
+def _linux_mountpoints_on_disk(disk_name: str) -> tuple[str, ...]:
+    """Mountpoints on partitions belonging to this whole disk (lsblk -d omits them)."""
+    if not shutil.which("lsblk") or not disk_name:
+        return ()
+    proc = subprocess.run(
+        ["lsblk", "-J", "-o", "NAME,MOUNTPOINTS", f"/dev/{disk_name}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return ()
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return ()
+    mounts: list[str] = []
+
+    def walk(node: dict) -> None:
+        raw = node.get("mountpoints") or []
+        if isinstance(raw, list):
+            for mp in raw:
+                if mp:
+                    mounts.append(str(mp))
+        elif raw:
+            mounts.append(str(raw))
+        for child in node.get("children") or []:
+            walk(child)
+
+    for dev in data.get("blockdevices", []):
+        walk(dev)
+    return tuple(dict.fromkeys(mounts))
+
+
+_SYSTEM_MOUNT_PREFIXES = ("/", "/boot", "/home", "/var", "/usr")
+
+
+def _mounts_indicate_system_disk(mounts: tuple[str, ...]) -> bool:
+    for mp in mounts:
+        if mp in _SYSTEM_MOUNT_PREFIXES:
+            return True
+        if mp.startswith("/boot/"):
+            return True
+    return False
+
+
+def _sort_disks_for_selection(disks: list[PhysicalDisk]) -> list[PhysicalDisk]:
+    """PS2 / USB first; disco do sistema por último (índice [N] alinhado ao BatchKit)."""
+
+    def sort_key(d: PhysicalDisk) -> tuple[int, int, int, str]:
+        system = 1 if "system disk" in d.notes.lower() else 0
+        ps2 = 0 if d.ps2_hdd else 1
+        removable = 0 if "removable" in d.notes.lower() else 1
+        return (system, ps2, removable, str(d.path))
+
+    ordered = sorted(disks, key=sort_key)
+    return [
+        PhysicalDisk(
+            index=i,
+            path=d.path,
+            model=d.model,
+            size_bytes=d.size_bytes,
+            bus=d.bus,
+            ps2_hdd=d.ps2_hdd,
+            hdl_path=d.hdl_path,
+            mountpoints=d.mountpoints,
+            notes=d.notes,
+        )
+        for i, d in enumerate(ordered)
+    ]
+
+
 def _linux_disks() -> list[PhysicalDisk]:
     if shutil.which("lsblk"):
         return _linux_disks_lsblk()
@@ -113,7 +186,7 @@ def _linux_disks_lsblk() -> list[PhysicalDisk]:
         if dev.get("type") != "disk":
             continue
         name = dev.get("name", "")
-        if name.startswith(("loop", "ram", "fd", "sr")):
+        if name.startswith(("loop", "ram", "fd", "sr", "nbd", "md", "dm-", "zram")):
             continue
         path = Path(dev.get("path") or f"/dev/{name}")
         size = int(dev.get("size") or 0)
@@ -125,11 +198,14 @@ def _linux_disks_lsblk() -> list[PhysicalDisk]:
             mounts = tuple(str(m) for m in mps if m)
         else:
             mounts = (str(mps),) if mps else ()
+        part_mounts = _linux_mountpoints_on_disk(name)
+        if part_mounts:
+            mounts = tuple(dict.fromkeys([*mounts, *part_mounts]))
 
         notes = []
         if rm:
             notes.append("removable")
-        if any(m in ("/", "/boot", "/home") for m in mounts):
+        if _mounts_indicate_system_disk(mounts):
             notes.append("WARNING: system disk")
 
         # Match BatchKit: hddN from hdl_dump often aligns with sdX index — heuristic only on Windows.
@@ -290,6 +366,19 @@ def _disk_from_darwin_dict(idx: int, data: dict[str, str]) -> PhysicalDisk:
     )
 
 
+def is_likely_system_disk(device: Path) -> bool:
+    """Whole-disk device that hosts Linux /, /boot, etc."""
+    device = device.expanduser()
+    for d in list_physical_disks():
+        if d.path == device:
+            return "system disk" in d.notes.lower()
+    if host_os() == "linux":
+        name = device.name
+        if name:
+            return _mounts_indicate_system_disk(_linux_mountpoints_on_disk(name))
+    return False
+
+
 def list_physical_disks(*, ps2_only: bool = False) -> list[PhysicalDisk]:
     os_name = host_os()
     if os_name == "windows":
@@ -317,7 +406,7 @@ def list_physical_disks(*, ps2_only: bool = False) -> list[PhysicalDisk]:
 
     if ps2_only:
         disks = [d for d in disks if d.ps2_hdd]
-    return disks
+    return _sort_disks_for_selection(disks)
 
 
 def resolve_disk_selection(

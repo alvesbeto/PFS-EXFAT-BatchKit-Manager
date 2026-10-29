@@ -56,18 +56,28 @@ class PrepareDiskWorker(QThread):
             self.line.emit(
                 "Modo só PFS: exFAT/jogos intactos — mkfs __system/__sysconf + FHDB/OSD/OPL/ATA-Assault."
             )
-        outcome = run_prepare_device(
-            state.selected_disk.path,
-            reference_mbr=state.reference_mbr,
-            init_pfs=state.init_pfs,
-            format_exfat=state.format_exfat,
-            scaffold_opl=state.scaffold_opl,
-            cfg_dev=state.cfg_dev,
-            force=True,
-            sudo_password=sudo_pw,
-            defer_exfat_format=state.defer_exfat_format,
-            pfs_only=state.mode == WizardMode.PREPARE_PFS,
-        )
+        try:
+            outcome = run_prepare_device(
+                state.selected_disk.path,
+                reference_mbr=state.reference_mbr,
+                init_pfs=state.init_pfs,
+                format_exfat=state.format_exfat,
+                scaffold_opl=state.scaffold_opl,
+                cfg_dev=state.cfg_dev,
+                force=True,
+                sudo_password=sudo_pw,
+                defer_exfat_format=state.defer_exfat_format,
+                pfs_only=state.mode == WizardMode.PREPARE_PFS,
+                known_size_bytes=(
+                    state.selected_disk.size_bytes
+                    if state.selected_disk.size_bytes > 0
+                    else None
+                ),
+            )
+        except Exception as exc:
+            self.line.emit(f"Erro inesperado ao preparar disco: {exc}")
+            self.finished_with_code.emit(2)
+            return
         for msg in outcome.messages:
             self.line.emit(msg)
             parsed = parse_opl_mount_message(msg)

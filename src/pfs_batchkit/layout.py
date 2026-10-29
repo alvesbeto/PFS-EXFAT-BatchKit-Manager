@@ -18,15 +18,37 @@ class HybridLayout:
     exfat_sector_count: int
 
 
+# Dummy total for BuildImageOutcome on error paths (must leave room after 384 MiB APA).
+PLACEHOLDER_DISK_BYTES = 500 * 1024**3
+
+
+def plan_layout_placeholder() -> HybridLayout:
+    """Valid layout object when real disk size is unknown (CLI/GUI error returns)."""
+    return plan_layout(PLACEHOLDER_DISK_BYTES)
+
+
+def min_hybrid_disk_bytes() -> int:
+    """Smallest whole-disk size that satisfies ``plan_layout`` (APA + minimal exFAT)."""
+    boot_bytes = apa.boot_region_end_sector() * apa.APA_SECTOR_SIZE
+    return boot_bytes + 2048 * apa.APA_SECTOR_SIZE
+
+
 def plan_layout(total_bytes: int) -> HybridLayout:
-    if total_bytes < apa.boot_region_end_sector() * apa.APA_SECTOR_SIZE:
-        raise ValueError("disk smaller than 384 MiB APA boot region")
+    boot_bytes = apa.boot_region_end_sector() * apa.APA_SECTOR_SIZE
+    if total_bytes < boot_bytes:
+        raise ValueError(
+            f"disco menor que a região APA boot ({boot_bytes // (1024**2)} MiB)"
+        )
     boot_end = apa.boot_region_end_sector()
     total_sectors = total_bytes // apa.APA_SECTOR_SIZE
     exfat_start = boot_end
     exfat_count = total_sectors - exfat_start
     if exfat_count < 2048:
-        raise ValueError("exFAT region too small")
+        min_gib = min_hybrid_disk_bytes() / (1024**3)
+        raise ValueError(
+            "região exFAT demasiado pequena — use o disco inteiro (ex. /dev/sdb, "
+            f"não uma partição); mínimo ~{min_gib:.2f} GiB"
+        )
     return HybridLayout(total_bytes, boot_end, exfat_start, exfat_count)
 
 
