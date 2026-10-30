@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 import textwrap
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -210,6 +212,159 @@ def install_manager_hdd_osd(device: Path) -> FhdbPayloadResult:
     )
 
     return FhdbPayloadResult(tuple(all_installed), tuple(messages))
+
+
+def patch_freehdb_cnf_for_browser(text: str) -> str:
+    """
+    Same sed rules as PFS-BatchKit-Manager «Install HDD-OSD» after FHDB
+    (``!PFS-BatchKit-Manager.bat`` ~5074–5075).
+    """
+    out_lines: list[str] = []
+    for line in text.splitlines(keepends=True):
+        if "OSDSYS_left_cursor" in line:
+            line = line.replace("009", "006")
+        if "OSDSYS_right_cursor" in line:
+            line = line.replace("008", "005")
+        if "OSDSYS_menu_bottom_delimiter" in line:
+            line = line.replace("006", "009").replace("007", "010")
+        out_lines.append(line)
+    return "".join(out_lines)
+
+
+def manager_freehdb_cfg_zip() -> Path | None:
+    for root in manager_root_candidates():
+        z = root / "BAT" / "FreeHDBootCFG.zip"
+        if z.is_file():
+            return z
+        z = root / "PFS-BatchKit-Manager" / "BAT" / "FreeHDBootCFG.zip"
+        if z.is_file():
+            return z
+    return None
+
+
+def _pfsshell_get_fmcb_file(
+    device: Path,
+    remote_name: str,
+    dest: Path,
+    shell: Path,
+) -> bool:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    script = "\n".join(
+        [
+            f"device {device.expanduser()}",
+            "mount __sysconf",
+            "cd FMCB",
+            f"lcd {dest.parent}",
+            f"get {remote_name}",
+            "umount",
+            "exit",
+            "",
+        ]
+    )
+    proc = subprocess.run(
+        [str(shell)],
+        input=script,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return dest.is_file() and dest.stat().st_size > 0
+
+
+def _pfsshell_put_fmcb_file(
+    device: Path,
+    local_file: Path,
+    remote_name: str,
+    shell: Path,
+) -> tuple[bool, str | None]:
+    script = "\n".join(
+        [
+            f"device {device.expanduser()}",
+            "mount __sysconf",
+            "cd FMCB",
+            f"lcd {local_file.parent}",
+            f"rm {remote_name}",
+            f"put {local_file.name}",
+            "umount",
+            "exit",
+            "",
+        ]
+    )
+    proc = subprocess.run(
+        [str(shell)],
+        input=script,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return False, textwrap.dedent(
+            f"""\
+            pfsshell put FREEHDB.CNF falhou ({proc.returncode}).
+            stdout: {proc.stdout}
+            stderr: {proc.stderr}
+            """
+        )
+    return True, None
+
+
+def apply_manager_freehdb_cnf_patch(device: Path) -> FhdbPayloadResult:
+    """
+    Patch ``__sysconf/FMCB/FREEHDB.CNF`` like Manager after FHDB (cursor/delimiter OSD).
+    """
+    if not probe_fhdb_installed(device):
+        return FhdbPayloadResult(
+            (),
+            ("FREEHDB.CNF: ignorado — osdmain.elf ausente (Install FHDB no PS2 primeiro).",),
+        )
+
+    shell = find_pfsshell()
+    if shell is None:
+        raise PfsInitError("pfsshell necessário para patch FREEHDB.CNF")
+
+    with tempfile.TemporaryDirectory(prefix="pfs-batchkit-fhdb-cnf-") as td:
+        cnf_path = Path(td) / "FREEHDB.CNF"
+        if not _pfsshell_get_fmcb_file(device, "FREEHDB.CNF", cnf_path, shell):
+            z = manager_freehdb_cfg_zip()
+            if z is None:
+                return FhdbPayloadResult(
+                    (),
+                    (
+                        "FREEHDB.CNF: ausente em __sysconf/FMCB — normal até FMCBInstaller; "
+                        "repita após Install FHDB ou copie FreeHDBootCFG.zip do Manager.",
+                    ),
+                )
+            with zipfile.ZipFile(z) as archive:
+                default = archive.read("FREEHDB_DEFAULT.CNF")
+            cnf_path.write_bytes(default)
+            patched = patch_freehdb_cnf_for_browser(
+                cnf_path.read_text(encoding="utf-8", errors="replace")
+            )
+            cnf_path.write_text(patched, encoding="utf-8")
+            ok, err = _pfsshell_put_fmcb_file(device, cnf_path, "FREEHDB.CNF", shell)
+            if not ok:
+                raise PfsInitError(err or "put FREEHDB.CNF falhou")
+            return FhdbPayloadResult(
+                ("__sysconf:/FMCB/FREEHDB.CNF",),
+                ("FREEHDB.CNF: FREEHDB_DEFAULT.CNF (Manager) + patch Browser aplicados.",),
+            )
+
+        raw = cnf_path.read_text(encoding="utf-8", errors="replace")
+        patched = patch_freehdb_cnf_for_browser(raw)
+        if patched == raw:
+            return FhdbPayloadResult(
+                ("__sysconf:/FMCB/FREEHDB.CNF",),
+                ("FREEHDB.CNF: já compatível com patch Manager (sem alterações).",),
+            )
+        cnf_path.write_text(patched, encoding="utf-8")
+        ok, err = _pfsshell_put_fmcb_file(device, cnf_path, "FREEHDB.CNF", shell)
+        if not ok:
+            raise PfsInitError(err or "put FREEHDB.CNF falhou")
+
+    return FhdbPayloadResult(
+        ("__sysconf:/FMCB/FREEHDB.CNF",),
+        ("FREEHDB.CNF: patch Manager (OSD cursor/delimiter) aplicado.",),
+    )
 
 
 def probe_fhdb_installed(device: Path) -> bool:

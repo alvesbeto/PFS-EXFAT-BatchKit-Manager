@@ -57,3 +57,16 @@ def test_fhdb_exfat_boot_safe_defers_without_fhdb() -> None:
     )
     assert ok is False
     assert msg and "bloqueado" in msg
+
+
+def test_should_defer_ata_until_fhdb(monkeypatch, tmp_path: Path) -> None:
+    from pfs_batchkit.fhdb_bdm import should_install_ata_on_prepare
+
+    monkeypatch.delenv("PFS_BATCHKIT_ATA_BEFORE_FHDB", raising=False)
+    do, reason = should_install_ata_on_prepare(tmp_path / "dev_null")
+    assert do is False
+    assert "finalize-fhdb" in reason
+
+    monkeypatch.setenv("PFS_BATCHKIT_ATA_BEFORE_FHDB", "1")
+    do2, _ = should_install_ata_on_prepare(tmp_path / "dev_null")
+    assert do2 is True

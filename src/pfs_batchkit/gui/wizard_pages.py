@@ -10,6 +10,8 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
@@ -44,6 +46,8 @@ from .page_ids import PageId
 from .state import AdvancedAction, WizardMode, WizardState
 from .workers import (
     BuildImageWorker,
+    FinalizeFhdbWorker,
+    GamesCopyWorker,
     PrepareDiskWorker,
     ScaffoldOplWorker,
     ValidateLayoutWorker,
@@ -105,10 +109,26 @@ class WelcomePage(BatchKitWizardPage):
             "Atualizar só PFS (FHDB/OSD/OPL) — manter exFAT/jogos",
             WizardMode.PREPARE_PFS,
         )
+        self._mode.addItem(
+            "Finalizar FHDB no PC (após Install FHDB no PS2)",
+            WizardMode.FINALIZE_FHDB,
+        )
+        self._mode.addItem(
+            "Importar jogos (.iso / .zso) para CD/ ou DVD/",
+            WizardMode.IMPORT_GAMES,
+        )
         self._mode.addItem("Validar layout OPL de uma imagem .img", WizardMode.VALIDATE_LAYOUT)
         self._mode.addItem("Modo avançado (criar .img, pastas OPL, …)", WizardMode.ADVANCED)
         layout.addWidget(QLabel("Tarefa:"))
         layout.addWidget(self._mode)
+        layout.addWidget(
+            QLabel(
+                f"<small>Versão <b>{__version__}</b> — se faltar uma opção, não use "
+                "<code>dist/pfs-batchkit-ui</code> desatualizado; prefira "
+                "<code>pfs-batchkit-ui</code> após "
+                "<code>uv pip install -e &quot;.[gui]&quot;</code>.</small>"
+            )
+        )
 
         req_box = QGroupBox("Requisitos")
         req_layout = QVBoxLayout(req_box)
@@ -131,6 +151,10 @@ class WelcomePage(BatchKitWizardPage):
             return int(PageId.DISK)
         if self._state.mode == WizardMode.PREPARE_PFS:
             return int(PageId.DISK)
+        if self._state.mode == WizardMode.FINALIZE_FHDB:
+            return int(PageId.DISK)
+        if self._state.mode == WizardMode.IMPORT_GAMES:
+            return int(PageId.GAMES_INPUT)
         if self._state.mode == WizardMode.VALIDATE_LAYOUT:
             return int(PageId.VALIDATE_INPUT)
         return int(PageId.ADVANCED)
@@ -171,12 +195,20 @@ class DiskSelectPage(BatchKitWizardPage):
         self._disks: list[PhysicalDisk] = []
 
     def initializePage(self) -> None:
-        self.setSubTitle(
-            "HDD PS2 por USB/SATA — não escolha /dev/sda se for o SSD/NVMe do Linux."
-        )
+        if self._state.mode == WizardMode.FINALIZE_FHDB:
+            self.setSubTitle(
+                "HDD PS2 — só grava __sysconf (FREEHDB.CNF + ATA-Assault). "
+                "Não apaga exFAT nem __system."
+            )
+        else:
+            self.setSubTitle(
+                "HDD PS2 por USB/SATA — não escolha /dev/sda se for o SSD/NVMe do Linux."
+            )
         self._refresh_disks()
 
     def nextId(self) -> int:
+        if self._state.mode == WizardMode.FINALIZE_FHDB:
+            return int(PageId.FINALIZE_OPTIONS)
         return int(PageId.PREPARE_OPTIONS)
 
     def validatePage(self) -> bool:
@@ -289,7 +321,8 @@ class PrepareOptionsPage(BatchKitWizardPage):
 
         layout.addWidget(
             QLabel(
-                "<small>O prepare injecta <b>ATA-Assault</b> em __sysconf/FMCB/ (obrigatório). "
+                "<small>O prepare <b>adiar</b> ATA-Assault até existir osdmain.elf — use "
+                "«Finalizar FHDB no PC» após Install FHDB no PS2. "
                 "Tela preta? <code>pfs-batchkit recover-first-boot DISCO --force</code></small>"
             )
         )
@@ -369,6 +402,165 @@ class PrepareOptionsPage(BatchKitWizardPage):
                 QMessageBox.warning(self, "Senha", "Informe senha sudo ou use sudo ./pfs-batchkit-ui")
                 return False
         return True
+
+
+class FinalizeOptionsPage(BatchKitWizardPage):
+    def __init__(self, state: WizardState) -> None:
+        super().__init__(PageId.FINALIZE_OPTIONS)
+        self._state = state
+        self.setTitle("Finalizar FreeHDBoot")
+        self.setSubTitle("Paridade PFS-BatchKit-Manager — após Install FHDB no PS2.")
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            QLabel(
+                "<p>Pré-requisito: no PS2 já correu "
+                "<b>FMCBInstaller → Install FHDB (From HDD)</b> e reiniciou "
+                "(menu OSD visível ou <code>osdmain.elf</code> em __system).</p>"
+                "<p>Este passo aplica <b>FREEHDB.CNF</b> (patch Manager) e "
+                "<b>ATA-Assault</b> em __sysconf/FMCB/ — necessário antes de "
+                "formatar exFAT no PC.</p>"
+                "<p>Não use «Atualizar só PFS» depois do FHDB (apaga __system).</p>"
+            )
+        )
+        form = QFormLayout()
+        self._sudo = _add_sudo_row(form)
+        layout.addLayout(form)
+
+    def nextId(self) -> int:
+        return int(PageId.FINALIZE_RUN)
+
+    def validatePage(self) -> bool:
+        if self._sudo is not None:
+            self._state.sudo_password = self._sudo.text()
+            if not is_admin() and not self._state.sudo_password.strip():
+                QMessageBox.warning(
+                    self,
+                    "Senha",
+                    "Informe senha sudo ou use sudo ./pfs-batchkit-ui",
+                )
+                return False
+        return True
+
+
+class GamesInputPage(BatchKitWizardPage):
+    def __init__(self, state: WizardState) -> None:
+        super().__init__(PageId.GAMES_INPUT)
+        self._state = state
+        self.setTitle("Importar jogos para OPL")
+        self.setSubTitle(
+            "Copia .iso/.zso para CD/ ou DVD/ na raiz exFAT (OPL Manager / BDM no PS2)."
+        )
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            QLabel(
+                "<p>Exige exFAT formatado com pastas <b>CD/</b> e <b>DVD/</b> "
+                "(prepare + <code>format-exfat</code> ou montagem manual).</p>"
+                "<p>No PS2, os jogos aparecem em <b>BDM → HDD interno (mass:)</b>, "
+                "não na lista «HDD Games» HDLoader — veja specs/OPL_EXFAT_COMPAT.md.</p>"
+            )
+        )
+        form = QFormLayout()
+        self._opl_root = QLineEdit(str(state.opl_root))
+        self._source = QLineEdit(str(state.games_source_dir))
+        self._medium = QComboBox()
+        self._medium.addItem("Auto (≥700 MiB → DVD)", "auto")
+        self._medium.addItem("Sempre CD", "CD")
+        self._medium.addItem("Sempre DVD", "DVD")
+        form.addRow("Raiz OPL (exFAT montado):", self._opl_root)
+        form.addRow("Pasta com ISOs:", self._source)
+        form.addRow("Destino:", self._medium)
+        layout.addLayout(form)
+
+    def initializePage(self) -> None:
+        found = discover_exfat_volume_root(disk=self._state.selected_disk)
+        if found is not None:
+            self._opl_root.setText(str(found))
+        elif self._state.opl_root.is_dir():
+            self._opl_root.setText(str(self._state.opl_root))
+        else:
+            self._opl_root.setText(
+                str(suggest_opl_root_path(disk=self._state.selected_disk))
+            )
+
+    def nextId(self) -> int:
+        return int(PageId.GAMES_RUN)
+
+    def validatePage(self) -> bool:
+        opl = Path(self._opl_root.text()).expanduser()
+        src = Path(self._source.text()).expanduser()
+        if not opl.is_dir():
+            QMessageBox.warning(
+                self,
+                "Raiz OPL",
+                f"Pasta não encontrada ou não montada:\n{opl}\n\n"
+                "Monte o exFAT (ex. /mnt/PS2OPL) após format-exfat.",
+            )
+            return False
+        if not src.is_dir():
+            QMessageBox.warning(self, "Origem", f"Pasta de ISOs não encontrada:\n{src}")
+            return False
+        self._state.opl_root = opl
+        self._state.games_source_dir = src
+        self._state.games_medium = str(self._medium.currentData())
+        return True
+
+
+class ImportGamesDialog(QDialog):
+    """Cópia rápida a partir do resumo pós-prepare (sem reiniciar o assistente)."""
+
+    def __init__(self, state: WizardState, parent: QWizardPage | None = None) -> None:
+        super().__init__(parent)
+        self._state = state
+        self.setWindowTitle("Importar jogos")
+        self.setMinimumWidth(520)
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self._opl_root = QLineEdit(str(state.opl_root))
+        self._source = QLineEdit(str(state.games_source_dir))
+        self._medium = QComboBox()
+        self._medium.addItem("Auto (≥700 MiB → DVD)", "auto")
+        self._medium.addItem("Sempre CD", "CD")
+        self._medium.addItem("Sempre DVD", "DVD")
+        form.addRow("Raiz OPL:", self._opl_root)
+        form.addRow("Pasta ISOs:", self._source)
+        form.addRow("Destino:", self._medium)
+        layout.addLayout(form)
+        self._log = QTextEdit()
+        self._log.setReadOnly(True)
+        self._log.setMaximumHeight(200)
+        layout.addWidget(self._log)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._run_copy)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _run_copy(self) -> None:
+        from .opl_transfer import copy_games_to_opl_library
+
+        opl = Path(self._opl_root.text()).expanduser()
+        src = Path(self._source.text()).expanduser()
+        if not opl.is_dir() or not src.is_dir():
+            QMessageBox.warning(self, "Importar", "Verifique raiz OPL e pasta de ISOs.")
+            return
+        medium = str(self._medium.currentData())
+        med_arg = None if medium == "auto" else medium.upper()
+        self._log.clear()
+        code, lines = copy_games_to_opl_library(opl, src, medium=med_arg)
+        for ln in lines:
+            self._log.append(ln)
+        if code == 0:
+            QMessageBox.information(
+                self,
+                "Importação",
+                "Cópia concluída. No OPL (PS2): BDM → dispositivo ATA, depois "
+                "atualize a lista (ou reinicie o OPL).",
+            )
+        else:
+            QMessageBox.warning(self, "Importação", "Nada copiado ou erro — veja o log.")
 
 
 class ValidateInputPage(BatchKitWizardPage):
@@ -711,6 +903,28 @@ class SummaryPage(BatchKitWizardPage):
             wizard.button(QWizard.WizardButton.BackButton).setEnabled(False)
 
 
+class FinalizeDonePage(SummaryPage):
+    def __init__(self, state: WizardState) -> None:
+        super().__init__(
+            state,
+            PageId.FINALIZE_DONE,
+            "FHDB finalizado no PC",
+            "Última etapa — clique Fechar para sair do assistente.",
+            FINALIZE_DONE_HTML,
+        )
+
+
+class GamesDonePage(SummaryPage):
+    def __init__(self, state: WizardState) -> None:
+        super().__init__(
+            state,
+            PageId.GAMES_DONE,
+            "Jogos copiados",
+            "Última etapa — clique Fechar para sair do assistente.",
+            GAMES_DONE_HTML,
+        )
+
+
 class PrepareDonePage(SummaryPage):
     """Resumo após prepare-device."""
 
@@ -722,6 +936,14 @@ class PrepareDonePage(SummaryPage):
             "Última etapa — clique Fechar para sair do assistente.",
             FINISH_HTML,
         )
+        self._import_btn = QPushButton("Importar jogos (.iso / .zso)…")
+        self._import_btn.clicked.connect(self._open_import)
+        lay = self.layout()
+        if lay is not None:
+            lay.addWidget(self._import_btn)
+
+    def _open_import(self) -> None:
+        ImportGamesDialog(self._state, self).exec()
 
     def initializePage(self) -> None:
         super().initializePage()
@@ -755,6 +977,22 @@ def make_run_pages(state: WizardState) -> list[QWizardPage]:
         ),
         AsyncRunPage(
             state,
+            PageId.FINALIZE_RUN,
+            "Finalizando FHDB",
+            "FREEHDB.CNF + ATA-Assault via pfsshell…",
+            FinalizeFhdbWorker,
+            PageId.FINALIZE_DONE,
+        ),
+        AsyncRunPage(
+            state,
+            PageId.GAMES_RUN,
+            "Importando jogos",
+            "Copiando ISOs para CD/ ou DVD/…",
+            GamesCopyWorker,
+            PageId.GAMES_DONE,
+        ),
+        AsyncRunPage(
+            state,
             PageId.VALIDATE_RUN,
             "Validando",
             "Analisando layout…",
@@ -781,12 +1019,27 @@ def make_run_pages(state: WizardState) -> list[QWizardPage]:
 
 
 FINISH_HTML = (
-    "<p><b>PC:</b> layout APA-Jail + exFAT OPL validado (como PFS-BatchKit-Manager).</p>"
-    "<p><b>Primeiro boot no PS2:</b> abre <b>wLaunchELF</b> (loader do <code>mbr.img</code>) — "
-    "isso é normal; ainda <i>não</i> é o menu OSD do FreeHDBoot.</p>"
-    "<p><b>Depois (uma vez no PS2):</b> mass: → APPS → FreeMcBoot → "
-    "<b>FMCBInstaller.elf</b> → R1 → <b>Install FHDB (From HDD)</b>. "
-    "Reinicie: aí sim boot FHDB + menu OSD; OPL em APPS/OPL (BDM HDD).</p>"
+    "<p><b>PC:</b> layout APA-Jail + PFS prontos; exFAT ainda não formatado (anti tela preta).</p>"
+    "<p><b>Primeiro boot no PS2:</b> <b>wLaunchELF</b> — normal até instalar FHDB.</p>"
+    "<p><b>No PS2 (uma vez):</b> mass: → APPS → FreeMcBoot → "
+    "<b>FMCBInstaller.elf</b> → R1 → <b>Install FHDB (From HDD)</b>. Reinicie (menu OSD).</p>"
+    "<p><b>Depois no PC:</b> assistente «<b>Finalizar FHDB no PC</b>» ou "
+    "<code>pfs-batchkit finalize-fhdb DISCO --force</code>; reinicie o PS2; "
+    "depois <code>format-exfat DISCO --force</code>.</p>"
     "<p>Não use Format/Expand no HDD Manager do wLaunchELF.</p>"
-    "<p>OPL Manager: <code>OPL_FOLDER</code> = raiz montada PS2OPL.</p>"
+)
+
+FINALIZE_DONE_HTML = (
+    "<p><b>PC:</b> FREEHDB.CNF + ATA-Assault aplicados.</p>"
+    "<p><b>PS2:</b> reinicie — boot FreeHDBoot (menu OSD).</p>"
+    "<p><b>Próximo no PC:</b> formatar exFAT (Modo avançado → build não; use CLI "
+    "<code>pfs-batchkit format-exfat DISCO --force</code> ou prepare com exFAT após reinício).</p>"
+    "<p>OPL Manager: <code>OPL_FOLDER</code> = raiz montada PS2OPL após format-exfat.</p>"
+)
+
+GAMES_DONE_HTML = (
+    "<p>ISOs copiados para <b>CD/</b> ou <b>DVD/</b> na raiz exFAT.</p>"
+    "<p><b>No PS2 (OPL):</b> modo <b>BDM HDD</b> → dispositivo interno (mass:) → "
+    "atualize a lista de jogos. Não use a secção «HDD Games» HDLoader para ISOs exFAT.</p>"
+    "<p>OPL Manager no PC: defina <code>OPL_FOLDER</code> na mesma raiz montada.</p>"
 )

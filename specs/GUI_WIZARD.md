@@ -10,8 +10,10 @@ Assistente gráfico: **preparar HDD**, validar `.img` e modo avançado — num �
 |------|---------|
 | **Preparar HDD** | Disco → Opções → Executar → Resumo |
 | **Atualizar só PFS** | Disco → Opções (sem exFAT) → Executar → Resumo — exFAT/jogos intactos |
+| **Finalizar FHDB** | Disco → Opções → Executar → Resumo (após Install FHDB no PS2) |
+| **Importar jogos** | Raiz OPL + pasta ISOs → Executar → Resumo (`.iso`/`.zso` → CD/DVD) |
 | **Validar layout** | Imagem + opções strict/exFAT → Executar → Resumo |
-| **Transferir jogos** | *(fora do assistente — use OPL Manager ou cópia manual)* |
+| **Transferir jogos** | Menu «Importar jogos» ou botão no resumo pós-prepare |
 | **Modo avançado** | Submenu: criar `.img`, validar, só pastas OPL |
 
 ## Pós-preparar (transferir jogos)

@@ -64,6 +64,31 @@ def _skip_ata_assault() -> bool:
     )
 
 
+def ata_before_fhdb_on_prepare() -> bool:
+    """Expert: inject ATA-Assault during prepare before PS2 FMCBInstaller (legacy)."""
+    return _env_truthy("PFS_BATCHKIT_ATA_BEFORE_FHDB")
+
+
+def should_install_ata_on_prepare(device: Path) -> tuple[bool, str]:
+    """
+    Manager never preloads ATA-Assault; FMCBInstaller owns ``__sysconf/FMCB/`` first.
+
+    Default: defer ATA until ``osdmain.elf`` exists (``finalize-fhdb`` after Install FHDB).
+    """
+    if _skip_ata_assault():
+        return False, "PFS_BATCHKIT_SKIP_ATA_ASSAULT=1"
+    if ata_before_fhdb_on_prepare():
+        return True, "PFS_BATCHKIT_ATA_BEFORE_FHDB=1"
+    from .fhdb_stage import probe_fhdb_installed
+
+    if probe_fhdb_installed(device):
+        return True, "osdmain.elf present (FHDB or HDD-OSD inject)"
+    return False, (
+        "ATA-Assault adiado — após Install FHDB no PS2 rode "
+        "`pfs-batchkit finalize-fhdb DISCO --force` antes de format-exfat"
+    )
+
+
 def resolve_defer_exfat_format(explicit: bool | None = None) -> bool:
     """
     Default **True** — ``prepare-device`` nunca formata exFAT no mesmo passo (evita tela preta).

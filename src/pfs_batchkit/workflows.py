@@ -525,7 +525,7 @@ def run_prepare_device(
             )
 
         if exit_code == 0:
-            from .fhdb_bdm import _skip_ata_assault
+            from .fhdb_bdm import _skip_ata_assault, should_install_ata_on_prepare
 
             if _skip_ata_assault():
                 messages.append(
@@ -533,12 +533,16 @@ def run_prepare_device(
                 )
                 exit_code = 2
             else:
-                try:
-                    bdm_result = install_ata_assault_sysconf(device)
-                    messages.extend(bdm_result.messages)
-                except PfsInitError as exc:
-                    messages.append(str(exc))
-                    exit_code = 2
+                do_ata, ata_reason = should_install_ata_on_prepare(device)
+                if do_ata:
+                    try:
+                        bdm_result = install_ata_assault_sysconf(device)
+                        messages.extend(bdm_result.messages)
+                    except PfsInitError as exc:
+                        messages.append(str(exc))
+                        exit_code = 2
+                else:
+                    messages.append(f"ATA-Assault: {ata_reason}")
 
     if format_exfat and exit_code == 0 and not defer_exfat:
         from .fhdb_stage import probe_fhdb_installed
@@ -667,6 +671,14 @@ def run_prepare_device(
                     "PS2: se o Manager já tinha HDD-OSD/__system no PC, o prepare injecta FHDB "
                     "como «Install HDD-OSD»; senão use FMCBInstaller uma vez (mass:/APPS/FreeMcBoot)."
                 )
+                from .fhdb_stage import probe_fhdb_installed as _probe_fhdb
+
+                if not _probe_fhdb(device):
+                    messages.append(
+                        "Depois do Install FHDB no PS2: "
+                        "`pfs-batchkit finalize-fhdb DISCO --force` (ATA-Assault + FREEHDB.CNF), "
+                        "reinicie, depois `format-exfat DISCO --force`."
+                    )
             else:
                 messages.append(
                     "PS2: reinicie após a actualização — menu OSD/FHDB vem de __system; "
@@ -722,6 +734,106 @@ def run_prepare_pfs_device(
     )
 
 
+def run_finalize_fhdb_device(
+    device: Path,
+    *,
+    pfsshell: Path | None = None,
+    force: bool = False,
+    sudo_password: str | None = None,
+) -> BuildImageOutcome:
+    """
+    Pós «Install FHDB (From HDD)» no PS2 (paridade Manager + exFAT BatchKit).
+
+    Não mkfs PFS/exFAT; aplica FREEHDB.CNF, ATA-Assault em __sysconf/FMCB/.
+    """
+    from .fhdb_stage import apply_manager_freehdb_cnf_patch, probe_fhdb_installed
+
+    blocked = _reject_system_disk(device)
+    if blocked is not None:
+        return BuildImageOutcome(
+            layout=plan_layout_placeholder(),
+            messages=blocked[1],
+            exit_code=blocked[0],
+        )
+
+    from .host.privileges import invoke_cli_elevated
+    from .host.runner import is_admin
+
+    if sudo_password and not is_admin():
+        proc = invoke_cli_elevated(
+            ["finalize-fhdb", str(device), "--force"],
+            password=sudo_password,
+        )
+        out_lines = [ln for ln in (proc.stdout + proc.stderr).splitlines() if ln.strip()]
+        return BuildImageOutcome(
+            layout=plan_layout_placeholder(),
+            messages=out_lines or ["finalize-fhdb: OK."],
+            exit_code=0 if proc.returncode == 0 else 2,
+        )
+
+    if not force:
+        return BuildImageOutcome(
+            layout=plan_layout_placeholder(),
+            messages=["finalize-fhdb exige --force (escrita em __sysconf via pfsshell)."],
+            exit_code=2,
+        )
+
+    messages: list[str] = []
+    exit_code = 0
+
+    if not probe_fhdb_installed(device):
+        return BuildImageOutcome(
+            layout=plan_layout_placeholder(),
+            messages=[
+                "FHDB: osdmain.elf ausente em __system/osd/.",
+                "No PS2: wLaunchELF → mass:/APPS/FreeMcBoot → FMCBInstaller.elf → "
+                "R1 → Install FHDB (From HDD). Não use prepare-pfs depois (apaga __system).",
+            ],
+            exit_code=2,
+        )
+
+    messages.append("FHDB detectado (__system/osd/osdmain.elf).")
+
+    try:
+        cnf_result = apply_manager_freehdb_cnf_patch(device)
+        messages.extend(cnf_result.messages)
+    except PfsInitError as exc:
+        messages.append(str(exc))
+        exit_code = 2
+
+    if exit_code == 0:
+        try:
+            bdm = install_ata_assault_sysconf(device)
+            messages.extend(bdm.messages)
+        except PfsInitError as exc:
+            messages.append(str(exc))
+            exit_code = 2
+
+    if exit_code == 0:
+        messages.append(
+            "Próximo: reinicie o PS2 (menu OSD FHDB). No PC: "
+            "`pfs-batchkit format-exfat DISCO --force` para ISOs em mass:."
+        )
+        from .device_readiness import format_doctor_report, verify_device_for_ps2
+
+        dev_report = verify_device_for_ps2(
+            device,
+            expect_fhdb=True,
+            expect_exfat_formatted=False,
+        )
+        messages.append("--- Verificação dispositivo (PS2) ---")
+        messages.extend(format_doctor_report(dev_report))
+        if not dev_report.ok:
+            exit_code = 2
+
+    try:
+        layout = plan_layout(device_size_bytes(device))
+    except (ValueError, OSError):
+        layout = plan_layout_placeholder()
+
+    return BuildImageOutcome(layout=layout, messages=messages, exit_code=exit_code)
+
+
 def requirements_lines() -> list[str]:
     from .host.detect import host_os
 
@@ -734,5 +846,6 @@ def requirements_lines() -> list[str]:
         "Linux/macOS: sudo ou root; Windows: terminal Administrador",
         "FHDB + OPL: specs/FHDB_OPL_BOOT.md — mbr.img + init-pfs + exFAT; FMCBInstaller no PS2 (ou env)",
         "Actualizar FHDB/OSD sem apagar jogos: prepare-pfs ou menu «Atualizar só PFS» na UI",
+        "Após Install FHDB no PS2: UI «Finalizar FHDB no PC» ou finalize-fhdb --force",
         "Detalhes: specs/CROSS_PLATFORM.md",
     ]

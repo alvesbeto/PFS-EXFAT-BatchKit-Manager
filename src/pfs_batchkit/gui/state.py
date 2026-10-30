@@ -26,6 +26,8 @@ def _default_scaffold_mount() -> Path:
 class WizardMode(StrEnum):
     PREPARE_DISK = "prepare"
     PREPARE_PFS = "prepare_pfs"
+    FINALIZE_FHDB = "finalize_fhdb"
+    IMPORT_GAMES = "import_games"
     VALIDATE_LAYOUT = "validate"
     ADVANCED = "advanced"
 

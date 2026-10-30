@@ -44,11 +44,14 @@ Não redistribuímos os binários FHDB/Sony em `__system` (mesma razão do Manag
 
 Com este projeto, após prepare:
 
-1. Ligue o PS2 com o HDD — boot pela cadeia do `mbr.img`.
+1. Ligue o PS2 com o HDD — boot pela cadeia do `mbr.img` (wLaunchELF R3Z ou Manager `boot.kelf`).
 2. wLaunchELF → exFAT BDM → **APPS/FreeMcBoot** → `FMCBInstaller.elf` → **Install FHDB (From HDD)**.
-3. Reinicie. Abra **OPL** (APPS/OPL ou menu FHDB) — BDM HDD já activo via `conf_opl.cfg`.
+3. Reinicie — menu OSD FreeHDBoot (`__system/osd/osdmain.elf`).
+4. No PC: **`pfs-batchkit finalize-fhdb DISCO --force`** (patch `FREEHDB.CNF` + ATA-Assault; paridade Manager).
+5. Reinicie o PS2; depois **`pfs-batchkit format-exfat DISCO --force`** para biblioteca ISO em `mass:`.
+6. Abra **OPL** — BDM HDD já activo via `conf_opl.cfg` (após exFAT formatado).
 
-**Não** use Format / Expand no HDD Manager do wLaunchELF.
+**Não** use Format / Expand no HDD Manager do wLaunchELF. **Não** rode `prepare-pfs` / `--init-pfs` depois do FHDB (apaga `__system`).
 
 ## FreeHDBoot + exFAT no mesmo disco (APA-Jail)
 
@@ -61,7 +64,17 @@ Com este projeto, após prepare:
 3. **`pfs-batchkit format-exfat DISCO --force`** só corre com **osdmain.elf + ATA-Assault** (gate em código).
 4. Expert: `PFS_BATCHKIT_FORMAT_EXFAT_ON_PREPARE=1` + `--format-exfat` no prepare (ainda exige FHDB+ATA).
 
-Variáveis: `PFS_BATCHKIT_SKIP_ATA_ASSAULT`, `PFS_BATCHKIT_ATA_ASSAULT_DIR`, `PFS_BATCHKIT_DEFER_EXFAT=1`.
+**Ordem ATA-Assault (paridade Manager):** o Manager **não** coloca ATA-Assault antes do FMCBInstaller. O prepare **adiar** ATA até existir `osdmain.elf` (inject HDD-OSD no PC ou Install FHDB no PS2). Depois do PS2:
+
+```bash
+pfs-batchkit finalize-fhdb /dev/sdX --force   # FREEHDB.CNF + ATA-Assault
+# reinicie o PS2 → menu OSD
+pfs-batchkit format-exfat /dev/sdX --force    # exFAT + pastas OPL
+```
+
+Legacy: `PFS_BATCHKIT_ATA_BEFORE_FHDB=1` volta a injectar ATA no prepare (pode interferir com FMCBInstaller).
+
+Variáveis: `PFS_BATCHKIT_SKIP_ATA_ASSAULT`, `PFS_BATCHKIT_ATA_ASSAULT_DIR`, `PFS_BATCHKIT_DEFER_EXFAT=1`, `PFS_BATCHKIT_ATA_BEFORE_FHDB`.
 
 Análise REA: binários PS2 (MIPS) exigem Ghidra/IDA configurados; a conclusão acima alinha-se com documentação ATA-Assault e commits OPL/POPSLoader (drivers duplicados), não com pseudocódigo FHDB desassemblado neste ambiente.
 

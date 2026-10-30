@@ -11,6 +11,7 @@ from .exfat import DEFAULT_VOLUME_LABEL
 from .workflows import (
     resolve_reference_mbr,
     run_build_image,
+    run_finalize_fhdb_device,
     run_format_exfat,
     run_init_pfs,
     run_prepare_device,
@@ -210,6 +211,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     prep_pfs.add_argument("--pfsshell", type=Path)
     prep_pfs.add_argument("--force", action="store_true")
+
+    fin_fhdb = sub.add_parser(
+        "finalize-fhdb",
+        help=(
+            "Após Install FHDB no PS2: FREEHDB.CNF (Manager) + ATA-Assault — "
+            "antes de format-exfat"
+        ),
+    )
+    fin_fhdb.add_argument("device", type=Path, help="Block device path")
+    fin_fhdb.add_argument("--pfsshell", type=Path)
+    fin_fhdb.add_argument("--force", action="store_true", required=True)
 
     val = sub.add_parser(
         "validate-opl-layout",
@@ -441,6 +453,22 @@ def main(argv: list[str] | None = None) -> int:
             print(line, file=stream)
         return outcome.exit_code
 
+    if args.command == "finalize-fhdb":
+        from .host.privileges import grant_destructive_write_in_process
+
+        grant_destructive_write_in_process()
+        outcome = run_finalize_fhdb_device(
+            args.device,
+            pfsshell=args.pfsshell,
+            force=args.force,
+        )
+        for line in outcome.messages:
+            stream = sys.stderr if outcome.exit_code and "FALHA" in line else sys.stdout
+            if outcome.exit_code and ("ausente" in line or "Falha" in line):
+                stream = sys.stderr
+            print(line, file=stream)
+        return outcome.exit_code
+
     if args.command == "validate-opl-layout":
         from .opl_validate import format_report, validate_opl_layout
 
@@ -465,8 +493,8 @@ def main(argv: list[str] | None = None) -> int:
             print(line, file=sys.stderr if not report.ok and "FALHA" in line else sys.stdout)
         if report.ok:
             print(
-                "\nPróximo passo: pfs-batchkit prepare-device /dev/sdX --force "
-                "--init-pfs --format-exfat"
+                "\nPróximo passo: pfs-batchkit prepare-device /dev/sdX --force --init-pfs "
+                "(exFAT só depois: finalize-fhdb → format-exfat — ver specs/FHDB_OPL_BOOT.md)"
             )
         return report.exit_code
 

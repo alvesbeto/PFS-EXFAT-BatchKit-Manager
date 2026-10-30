@@ -14,6 +14,7 @@ from ..workflows import (
     ensure_reference_mbr,
     resolve_reference_mbr,
     run_build_image,
+    run_finalize_fhdb_device,
     run_prepare_device,
     run_scaffold_opl,
 )
@@ -86,6 +87,81 @@ class PrepareDiskWorker(QThread):
         if outcome.opl_mount is not None:
             state.opl_root = outcome.opl_mount
         self.finished_with_code.emit(outcome.exit_code)
+
+
+class FinalizeFhdbWorker(QThread):
+    line = Signal(str)
+    finished_with_code = Signal(int)
+
+    def __init__(self, state: WizardState) -> None:
+        super().__init__()
+        self._state = state
+
+    def run(self) -> None:
+        state = self._state
+        if state.selected_disk is None:
+            self.line.emit("Nenhum disco selecionado.")
+            self.finished_with_code.emit(2)
+            return
+
+        grant_destructive_write_in_process()
+        sudo_pw = state.sudo_password.strip() or None
+        if not is_admin() and not sudo_pw:
+            self.line.emit(
+                "Informe a senha sudo na etapa anterior ou execute o app como root."
+            )
+            self.finished_with_code.emit(2)
+            return
+
+        self.line.emit(
+            f"Finalizando FHDB em {state.selected_disk.path} "
+            "(FREEHDB.CNF + ATA-Assault) …"
+        )
+        try:
+            outcome = run_finalize_fhdb_device(
+                state.selected_disk.path,
+                force=True,
+                sudo_password=sudo_pw,
+            )
+        except Exception as exc:
+            self.line.emit(f"Erro inesperado: {exc}")
+            self.finished_with_code.emit(2)
+            return
+        for msg in outcome.messages:
+            self.line.emit(msg)
+        self.finished_with_code.emit(outcome.exit_code)
+
+
+class GamesCopyWorker(QThread):
+    line = Signal(str)
+    finished_with_code = Signal(int)
+
+    def __init__(self, state: WizardState) -> None:
+        super().__init__()
+        self._state = state
+
+    def run(self) -> None:
+        from .opl_transfer import copy_games_to_opl_library
+
+        opl_root = self._state.opl_root.expanduser()
+        source = self._state.games_source_dir.expanduser()
+        medium = self._state.games_medium
+        med_arg = None if medium == "auto" else medium.upper()
+        self.line.emit(f"Origem: {source}")
+        self.line.emit(f"Destino OPL: {opl_root}")
+        try:
+            code, lines = copy_games_to_opl_library(
+                opl_root,
+                source,
+                medium=med_arg,
+            )
+        except OSError as exc:
+            self.line.emit(str(exc))
+            self.finished_with_code.emit(2)
+            return
+        for ln in lines:
+            self.line.emit(ln)
+        self.finished_with_code.emit(code)
 
 
 class ValidateLayoutWorker(QThread):

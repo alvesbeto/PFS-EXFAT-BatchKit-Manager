@@ -33,6 +33,7 @@ a = Analysis(
         "pfs_batchkit.gui.opl_transfer",
         "pfs_batchkit.gui.page_ids",
         "pfs_batchkit.fhdb_bdm",
+        "pfs_batchkit.fhdb_stage",
         "pfs_batchkit.opl_validate",
         "pfs_batchkit.gui.workers",
         "pfs_batchkit.gui.state",

@@ -370,9 +370,11 @@ def _ps2_steps(*, fhdb_ready: bool, exfat: bool) -> tuple[str, ...]:
         )
     return (
         "1. Boot inicial: wLaunchELF (normal até instalar FHDB).",
-        "2. mass: → APPS/FreeMcBoot → FMCBInstaller.elf → Install FHDB (From HDD).",
-        "3. Reinicie — menu OSD FHDB.",
-        "4. Depois use OPL com conf_opl.cfg na raiz exFAT (BDM).",
+        "2. mass: → APPS/FreeMcBoot → FMCBInstaller.elf → R1 → Install FHDB (From HDD).",
+        "3. Reinicie — deve entrar no menu OSD (FreeHDBoot).",
+        "4. No PC: pfs-batchkit finalize-fhdb DISCO --force (ATA-Assault + FREEHDB.CNF).",
+        "5. Reinicie de novo; depois format-exfat no PC para ISOs em mass:.",
+        "6. NÃO use prepare-pfs/--init-pfs depois do FHDB (apaga osdmain.elf).",
     )
 
 
