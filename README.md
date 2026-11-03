@@ -1,3 +1,6 @@
+# ⚠️ This project has been discontinued. GO TO > https://github.com/GDX-X/PFS2-HDD-Manager ⚠️
+
+
 # PFS-BatchKit-Manager
 
 <img src="https://i.imgur.com/O70NFyn.png" alt="Logo" align="right" width="600"/>
