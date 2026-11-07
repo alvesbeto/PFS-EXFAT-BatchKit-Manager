@@ -1,338 +1,128 @@
-# PFS-BatchKit-Manager
-
-<img src="https://i.imgur.com/O70NFyn.png" alt="Logo" align="right" width="600"/>
-
-Is a batch script that allows you to easily manage your PS2/PSX hard drive.
-
-PFS BatchKit Manager required the creation of several additional projects
-
-[Title database manager](https://github.com/GDX-X/Title-Database-Scrapper)
-
-[OPL Game infos database Project](https://github.com/GDX-X/OPL-Games-Infos-Database-Project)
-
-[HDD-OSD Icon Packs Project](https://archive.org/details/hdd-osd-icons-pack)
-
-if my tools have helped you or saved you a lot of time and you would like to buy me a coffee or tea, please consider making a donation!
-[Donate](https://ko-fi.com/J3J6PIQ9O)
-
-# How to use
-
-<details>
-  <summary> <h7> <b> How to Prepare APA-Jail (Hybrid minimal PFS + exFAT OPL) [NEW] </b> </h7> </summary>
-   <p>
-
-Allows you to format the PS2 internal HDD with a minimal PFS system area (~2GB) for FreeHDBoot/HOSDMenu booting while keeping the rest of the drive formatted in standard **exFAT** (`OPL` volume) for direct drag-and-drop game loading via PC.
-
-#### Step 1: Format HDD (APA-Jail Type-A2)
-1. Run `!PFS-BatchKit-Manager.bat` as Administrator and select your target PS2 HDD.
-2. In the Main Menu, go to `9 (HDD Management)` > `1 (Format HDD)` > Option `2 (APA-Jail minimal + exFAT)`.
-3. This creates a hybrid Sector 0 (APA header + PC MBR), 128MB minimal PFS system partitions (`__system`, `__sysconf`, `__common`, `__contents`), and formats the remaining drive as standard exFAT labeled `OPL`.
-
-#### Step 2: Install Boot Stack
-1. In `8 (OSD/XMB Management)`, choose Option `6 (Install HOSDMenu + exFAT boot stack)`.
-2. Select your bootloader:
-   * **Option 1: FreeHDBoot 1.966 Official** (Recommended for unmodded PS2 consoles).
-   * **Option 2: krHACKen Universal MBR** (Recommended for modchipped consoles like Matrix/Modbo).
-3. The script automatically aligns and injects the MagicGate KELF payload into LBA 16 using low-level Win32 sector writes (`rawcopy.exe`), updates APA checksums, and copies system binaries into the PFS partitions.
-
-#### Step 3: Update OPL, Configure Language, HD 720p & IGR
-1. In `8 (OSD/XMB Management)`, choose Option `5 (Update OPL, Languages, HD 720p & IGR)` (or via `3 (OPL Management)` > Option `6`).
-2. The script queries the official GitHub repository, downloads the latest `OPNPS2LD.ELF`, and extracts all 34 official translation packs (`OPNPS2LD-LANGS.7z`).
-3. An interactive selector dynamically detects your Windows Host OS language (`CurrentUICulture` / `settings.ini`) and presents it as Option `[1]` (`[Recommended - Host System Language]`), while offering popular options (`English`, `Spanish`, `French`, etc.) or the full catalog of all 34 languages.
-4. **Alta Definição (HD 720p & 16:9):** Configura a interface gráfica do OPL em modo panorâmico 16:9 widescreen (`wide_screen=1`) e resolução HD progressiva 720p @ 60Hz (`vmode=5`).
-5. **In-Game Reset (IGR 100% HDD):** Configura `exit_path=` para que ao pressionar o combo de IGR (`L1+L2+R1+R2+SELECT+START`), o jogo encerre retornando diretamente ao OPL no HDD interno via FreeHDBoot Auto-Boot (`LK_Auto_E1`), sem necessidade de qualquer Memory Card.
-6. **Jogos em HD (GSM):** Cria o template mestre `conf_game.cfg` e atualiza as configurações em `CFG/` com `$EnableGSM=1` e `$GSMVMode=10` (HDTV 720p @ 60Hz).
-7. **Injeção Dupla (PFS + exFAT):** Injeta todos os idiomas e configurações tanto nas partições PFS (`__common:/OPL/`, `__common:/OPL/LNG/`, `__common:/LNG/`, `__sysconf:/FMCB/`) quanto no volume exFAT (`E:\LNG\`, `E:\conf_opl.cfg`), garantindo que o OPL carregue seu idioma e configurações de vídeo imediatamente no bootloader sem depender do BDM estar ativo.
-
-#### Step 4: Add Games & Play
-1. Connect the HDD to your PC — the tool automatically mounts and assigns a drive letter to the `OPL` volume in Windows.
-2. Drag and drop your `.iso` or `.zso` game images directly into the `DVD/` or `CD/` folders.
-3. Put cover art into `ART/` and virtual memory cards into `VMC/`.
-4. Reconnect the HDD to your PS2, boot up, and OPL will immediately start in high definition 720p Widescreen, in your chosen language, and with your games forced in 720p HD!
-
-For complete technical specifications and architectural details, see [SDD.md](SDD.md).
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to Install FreeHDBoot (Hack your PS2 hard drive) </b> </h7> </summary>
-   <p>
-     
-IMPORTANT! If you have already Formatted and installed FreeHDBoot (From HDD), you don't need to do this.       
-     
-If you installed Premade FreeHDBoot image with HDD Raw Copy Please format your hard drive by following all the steps below.
-
-1) In PFS BatchKit Manager Go to > `HDD Management`
-     
-2) Choose option 8 `Hack your HDD To PS2 Format` `(This is only intended to be used as an entry point for the PS2.)`
-     
-3) After the hacking put your HDD in your PS2 and format your hard drive with wLaunchELF.      
-In wLaunchELF do this `FileBrowser` > `MISC` > `HDDManager` > `Press R1` > `Format` and confirm.
-
-Note it is no longer necessary to create the +OPL partition the default resource partition will now be __common but you can still create it if you want
-
-4) Copy the contents of the !COPY_TO_USB_ROOT folder to the root of your USB drive                
- `Your usb key must be in FAT32 format`
-
-7) Install FreeHDBoot (From HDD).
-In wLaunchELF do this `FileBrowser` > `Mass` > `APPS` > `FreeMcBoot` > `FMCBInstaller.elf` Press Circle for Launch > `Press R1` > `Install FHDB` (From HDD)
-
-8) Your hard drive will be properly formatted and hacked after that
-  ------
-     
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to install PS1 Games </b> </h7> </summary>
-   <p>
-   
-NOTE: You need to find the right files to be able to launch PS1 games        
-for copyright reasons I cannot provide you with these files:
-
-`POPS.ELF` 	    MD5: `355A892A8CE4E4A105469D4EF6F39A42`            
-`IOPRP252.IMG` 	MD5: `1DB9C6020A2CD445A7BB176A1A3DD418`
-
-Copy your .BIN/CUE in POPS Folder
-1) Go to > `POPS Management` > `Transfer POPS-Binaries`
-2) Go to > `Games Management` > `Conversion`
-3) Choose Convert .BIN/CUE To .VCD
-4) Go to > HDD Management > Create a Partition > Create `__.POPS` Partition `Choose an appropriate size according to the number of games you want to install`
-5) Transfer your PS1 Games
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to install PS2 Games </b> </h7> </summary>
-   <p>
-     
-NOTE: Before installing your games, it is strongly recommended to define your OPL resource partition or create the +OPL partition. I recommend using the __common partition by default
-
-Support Compressed format Zip, 7z, Rar, ZSO
-You don't need to convert your BIN/CUE to iso, they will be automatically converted when transferring.
-
-Copy your `.ISO`, `.BIN/CUE`, `.ZSO`, `.Zip`, `.7z` `.Rar` in DVD Folder Or You can choose a folder where your games are located during installation.
-
-In PFS BatchKit Manager Choose `Transfer PS2 Games`
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to Install HDD-OSD (Browser 2.0) </b> </h7> </summary>
-   <p>
-
-NOTE: You need to find the correct files to be able to install the HDD-OSD.                  
-for copyright reasons I cannot provide you with these files:        
-`hddosd-1.10-u.7z` MD5: `403202A03B910FB6FBD522D6AB5007E7`
-     
-1) Install FreeHDBoot (From HDD)
-2) Go to the `OSD/XMB Management` > Install HDD-OSD
-3) In `Partitions Management` choose Update Partition Resources Header (For PS2 games you want to run from HDD-OSD)
-
-NOTE: HDD-OSD will not work on a 2TB hard drive (Currently)
-
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to Setup NBD Server (Network) </b> </h7> </summary>
-   <p>
-
-`Obviously this method won't work for PS2/HDD network adapters that don't have a working network port (i.e. gamestar`
-       
-     
-1) Go to `HDDManagement` > `NBD Server`
-
-2) Choose `Install/Update NBD Driver` (You will be asked to restart the computer to activate test mode)
-
-3) After restarting Repeat steps 1 and 2 You will not need to restart your computer this time
-
-4) A window should warn you if you want to install the driver Confirm install the driver                              
-(If the driver refuses to install, you will have to go into your computer's bios and disable Secureboot UEFI)
-
-5) After installing the driver Turn on your PS2 go to OPL (Compatible NBD [__Download Here__](https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/HDD-OSD/OPNPS2LD.ELF)) 
-     
-6) In OPL Go to `Settings` > `Enable Write Operation` `ON` Select `OK` For save
-   
-7) Still in OPL Go to `Network Settings` and write down the `IP Address` Now go back to the menu and Go to `Start NBD Server`       
-(if it works, the following message should appear `NBD Server Running...`)     
-     
-8) Now In PFS Batchkit Manager Go to `HDDManagement` > `NBD Server` > `Mount Device`
-
-9) Type in the IP address of your PS2 that you wrote down                                                       
-
-10) Normally if all goes well, your hard drive should be connected to your pc as local hard drive                    
-(You can check in `Show list of mounted devices` InstanceName PS2HDD)
-     
-Now you can use all features of PFS Batchkit Manager!
-
-NOTE: Once you are done with what you need to do, don't forget to unmount the hard drive from the network
-
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> How to Show PS2 Games in PSBBN & PSX XMB Menu </b> </h7> </summary>
-   <p>
-
-1) Connect your PS2 Or PSX HDD With NBD Server Or locally
-2) Go to the `OSD/XMB Management` > `Partitions Management` > 
-3) Choose Update Partition Resources Header
-4) Choose Yes > Update partition resources PS2 Games
-5) when it asks `Do you want to create a PFS resource partition` put `Yes`  
-(if you do not have this option it means that it did not detect the `p2lboot` folder in the `__system` partition then you must create it first)
-6) Select your game!
-
-NOTE: For PS1 games you need to install them as a partition everything will be done automatically
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> Features & Capabilities </b> </h7> </summary>
-   <p>
-
-- **APA-Jail Type-A2 Hybrid Partitioning:** Minimal PFS system footprint (~2GB) for native console booting + standard PC exFAT data volume (`OPL`) up to 2TB for fast USB/SATA game transfers.
-- **Robust MBR Bootloader Injection:** Sector-level alignment and direct Win32 raw write via `rawcopy.exe`, bypassing Windows OS locks without corrupting the PC partition table.
-- **Boot Stack Options:**
-  - FreeHDBoot 1.966 Official with custom `FREEHDB.CNF` ensuring the FHDB boot logo appears.
-  - krHACKen Universal MBR for modchipped consoles (Matrix Infinity, Modbo, clones).
-- **Latest Open PS2 Loader (OPL) Auto-Updater:**
-  - Automated fetching from GitHub Releases (`latest`).
-  - Pre-configured Block Device Media (`BDM`) ATA driver mode (`enable_bdm_hdd=1`, `usb_mode=2`, `default_device=0`).
-  - Full support for 32 official OPL Language Packs (`OPNPS2LD-LANGS.7z`) with an interactive language picker and font deployment.
-- **PFS System Management:** Fast `pfsshell` script generation for importing and exporting files to `__system`, `__sysconf`, and `__common`.
-- **Legacy HDL and POPS Support:** Full compatibility with classic HDL Game installations, POPS PS1 conversions, NBD network server mounts, and HDD-OSD / PSBBN XMB browser assets.
-  ------
-   </p>
-</details>
-
-# FAQ
-
-<details>
-  <summary> <h7> <b> PSX DESR compatible? </code>  </b> </h7> </summary>
-   <p>
-
-  Yes, all models are supported
-  
-  PSX V1 5000, 7000, 5100, 7100                
-  PSX V2 5500, 7500, 5700, 7700
-  
-  NOTE:
-  In HDD Management menu                     
-  Do Not Format your PSX hard drive           
-  Do Not Use Option Hack PS2 HDD
-  
-  For security, I advise you to make a full backup of your PSX hard drive in case of problems. You can do it with HDDRawCopy
-  
- ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> Things not to do </code>  </b> </h7> </summary>
-   <p>
-     
-  Do not use the Expand option in wLaunchELF, it may corrupt your hard drive 
-  
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> I'm stuck during file transfer </code>  </b> </h7> </summary>
-   <p>
-  
-If you get stuck during file transfer, it means your partition is full or corrupted.
-
-You have to delete it and recreate one with an appropriate size
-
- ------
-   </p>
-</details>
-
-
-<details>
-  <summary> <h7> <b> Can use it without internet ?  </b> </h7> </summary>
-   <p>
-     
-  Yes you can use it without internet
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> Can I use my 1TB, 2TB hard drive? </b> </h7> </summary>
-   <p>
-
-Yes Support up to 2TB Maximum
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> What is <code>TROJAN_7.BIN</code>  </b> </h7> </summary>
-   <p>
-     
-It's a patch for PS1 games that fixes some bugs.
-     
-you can find it [__here__](https://www.psx-place.com/threads/popstarter.19139/page-8#post-298564)
-     
-  ------
-   </p>
-</details>
-
-<details>
-  <summary> <h7> <b> Screenshots </b> </h7> </summary>
-   <p>
-
-![image](https://user-images.githubusercontent.com/22562949/152686188-325fe89d-c02c-4908-a517-2751774fcc9f.png)
-     
-![image](https://user-images.githubusercontent.com/22562949/152685686-1a12ed0d-93fc-4eeb-8971-28fb0db95152.png)
-     
-![PFSInstall](https://user-images.githubusercontent.com/22562949/177049531-475f18ad-f0d6-4d7f-9d9e-4eb93b39ee94.png)
-
-![ae3d5a45181942f225fe4657b1b0a8d8](https://user-images.githubusercontent.com/22562949/170713114-5154c779-92f6-4917-bf83-89f2bd313396.png)
-
-![PSX_XMB_Games_Final_1_Cropped](https://user-images.githubusercontent.com/22562949/170713170-a96cf172-879b-43ae-9863-044e7182452e.png)
-
-
-  ------
-   </p>
-</details>
-
-# Credits
-<details>
-  <summary> <h7> <b> Special Thanks </b> </h7> </summary>
-   <p>
- 
-AkuHAK, Uyjulian For maintaining and improving hdl_dump and pfsshell.
-
-NeMesiS, Dekkit, Rs1n For making me want to create this script.
-
-krHACKen For mbr.img, POPStarter, CUE2POPS, SCEDoormat_NoME and more
-
-El_isra For DiagBox.
-
-Roland For NBD Server
-
-SpaceCoyote For 3D PS1 games covers HDD-OSD
-
-LopoTRI, Ripto For the tests carried out.
-
-TnA For giving me some ideas to add to the script.
-
-  ------
-   </p>
-</details>
-
+# PFS-BatchKit-Manager (Fork APA-Jail & exFAT BDM)
+
+<img src="https://i.imgur.com/O70NFyn.png" alt="Logo" align="right" width="400"/>
+
+> **Fork mantido por [@alvesbeto](https://github.com/alvesbeto/PFS-BatchKit-Manager)**  
+> *Baseado no projeto original de [GDX-X/PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager)*
+
+O **PFS BatchKit Manager** é uma suíte abrangente para gerenciar discos rígidos internos de PlayStation 2 e PSX (DESR). 
+
+Este **Fork** foi desenvolvido para modernizar a utilização do HD interno do PS2, substituindo a necessidade de softwares legados lentos (como `hdl_dump`) pelo revolucionário formato híbrido **APA-Jail + exFAT BDM**, permitindo copiar jogos, traduções, capas e temas simplesmente **arrastando e soltando arquivos pelo Windows Explorer**.
+
+---
+
+## 🌟 O que este Fork faz de diferente do repositório original?
+
+| Recurso | Repositório Original (GDX-X) | Este Fork (@alvesbeto) |
+| :--- | :--- | :--- |
+| **Formato de Armazenamento** | Apenas partições proprietárias APA/PFS (cada jogo é uma partição individual). | **Híbrido APA-Jail Minimal + exFAT BDM (Type-A2)**: área de boot PFS (~2GB) + partição exFAT (volume `OPL`) para jogos até 2TB. |
+| **Transferência de Jogos** | Exige instalação manual via linha de comando ou rede lenta NBD Server. | **Arrastar e Soltar (Drag & Drop)** direto no Windows Explorer para as pastas `DVD/`, `CD/`, `ART/`, `POPS/`. |
+| **Versão do Open PS2 Loader** | Versões empacotadas estáticas ou legadas. | **Atualizador Oficial GitHub Automatizado**: baixa dinamicamente a versão mais recente (`latest`) de `ps2homebrew/Open-PS2-Loader`. |
+| **Suporte a Idiomas** | Idiomas limitados ou requer cópia manual. | **Instalador com 34 idiomas e detecção automática**: detecta o idioma do Windows e instala Português do Brasil (`Portuguese_BR`) e fontes TTF de fábrica. |
+| **In-Game Reset (IGR)** | Costuma falhar no HD interno (`hdd0:`) por ausência de drivers PFS durante os jogos. | **IGR 100% Funcional no HD Interno (`mass:/`)**: instala uma cópia do ELF no exFAT e aponta `exit_path=mass:/OPL/OPNPS2LD.ELF`. Retorna ao OPL via `L1+L2+R1+R2+Select+Start` sem Memory Card! |
+| **Modo de Vídeo e Cores** | Forçar modos VGA causava tela roxa/magenta em cabos vídeo componente / HDMI. | **Modo de Vídeo Automático (`vmode=0`)**: cores 100% fiéis sem distorção e suporte nativo a Widescreen 16:9. |
+| **Compatibilidade de Jogos** | Forçar GSM globalmente causava travamentos em diversos jogos. | **Resolução Nativa Preservada**: jogos rodam em suas resoluções originais de fábrica sem gerar `conf_game.cfg` defeituoso. |
+| **Integração com Bootloader** | Boot legado ou dependente de cartões FMCB. | **FreeHDBoot / OSDMenu Integrado**: inicialização limpa direto do HD sem nenhum Memory Card inserido no console. |
+| **Reparo de Partição** | Não possui reparo de tabela APA-Jail. | **Ferramenta de Reparo de Cabeçalho**: regenera o cabeçalho APA LBA 0 e alinhamento do MBR sem perda de dados. |
+| **Canal de Atualizações** | Conectado ao upstream do autor original. | **Independente**: consulta e atualiza diretamente deste fork (`alvesbeto/PFS-BatchKit-Manager`), preservando todas as customizações. |
+
+---
+
+## 🚀 Principais Funcionalidades
+
+### 1. Particionamento Híbrido APA-Jail Minimal + exFAT BDM
+* O HD do PS2 é formatado com um setor 0 híbrido contendo o cabeçalho APA (para o hardware do PS2) e a tabela MBR (para o Windows).
+* Cria partições mínimas de 128MB (`__system`, `__sysconf`, `__common`, `__contents`) para que o FreeHDBoot e o OSDMenu inicializem no PS2.
+* Todo o restante do disco (até 2TB) é formatado em **exFAT**, ganhando uma letra de unidade no Windows (ex: `E:\`).
+* Você pode copiar jogos ISO, ZSO, pastas de capas (`ART/`), músicas, temas e VMCs na velocidade máxima da sua porta SATA ou USB 3.0!
+
+### 2. Atualizador de OPL & Pacotes de Tradução Integrados
+* Consulta automática à release oficial do OPL no GitHub (`ps2homebrew/Open-PS2-Loader`).
+* Seletor interativo que detecta o idioma do sistema operacional do host e instala as traduções (`lang_Portuguese_BR.lng`) e fontes compatíveis (`font_Portuguese_BR.ttf`) diretamente na pasta `OPL/` da partição exFAT e na partição PFS.
+
+### 3. In-Game Reset (IGR) sem Memory Card
+* Os jogos do PS2, ao rodarem pelo HD interno via driver BDM exFAT, não possuem acesso às partições PFS do disco (`hdd0:`).
+* Este fork instala o executável `OPNPS2LD.ELF` tanto no PFS (para o boot inicial pelo OSDMenu) quanto na partição exFAT (`mass:/OPL/OPNPS2LD.ELF`).
+* O caminho de saída é configurado para `exit_path=mass:/OPL/OPNPS2LD.ELF`. Ao pressionar o combo de IGR no controle (`L1 + L2 + R1 + R2 + START + SELECT`), o jogo retorna imediatamente para o OPL sem erros!
+
+### 4. Cores Corretas e Resolução de Tela Estável
+* Corrige a distorção roxa/magenta que ocorria ao forçar resolução VGA. O OPL é configurado em `vmode=0` (Auto) e `wide_screen=1` (Widescreen 16:9).
+* Resolução nativa dos jogos 100% respeitada: nenhum arquivo `conf_game.cfg` com GSM forçado é gerado, eliminando telas pretas e bugs visuais.
+
+---
+
+## 🛠️ Como Utilizar (Passo a Passo)
+
+### Passo 1: Formatar o HD com APA-Jail Minimal + exFAT
+1. Execute `!PFS-BatchKit-Manager.bat` como Administrador e selecione o disco rígido do PS2.
+2. No menu principal, vá em:  
+   `9 (HDD Management)` > `1 (Format HDD)` > **`2 (APA-Jail minimal + exFAT)`**.
+3. O script criará as partições de sistema mínimas e formatará todo o espaço restante em exFAT com o rótulo de volume **`OPL`**.
+
+### Passo 2: Instalar o Boot Stack (FreeHDBoot / OSDMenu)
+1. Vá em:  
+   `8 (OSD/XMB Management)` > **`6 (Install HOSDMenu + exFAT boot stack)`**.
+2. Escolha o bootloader adequado para seu console:
+   * **Opção 1: FreeHDBoot 1.966 Oficial** (Recomendado para PS2 sem modchip / padrão).
+   * **Opção 2: krHACKen Universal MBR** (Recomendado para PS2 com modchip Matrix / Modbo).
+3. O script injetará o KELF MagicGate no LBA 16 e configurará as partições PFS para boot direto pelo HD.
+
+### Passo 3: Atualizar o OPL e Configurar Idioma e IGR
+1. Vá em:  
+   `8 (OSD/XMB Management)` > **`5 (Update OPL, Languages + IGR)`** (ou via menu do OPL).
+2. O script fará o download da versão mais recente do OPL e do pacote de traduções.
+3. Escolha seu idioma (ex: **`1 [Portuguese_BR]`**).
+4. O script instalará o OPL na partição PFS, copiará o executável para a pasta `OPL/` do exFAT e configurará o `exit_path=mass:/OPL/OPNPS2LD.ELF`.
+
+### Passo 4: Adicionar Jogos e Jogar
+1. Conecte o HD ao seu PC — o Windows montará a unidade exFAT automaticamente (ex: `E:\`).
+2. Copie seus jogos diretamente para as pastas correspondentes:
+   * Jogos de PS2 em formato `.iso` ou `.zso` na pasta **`DVD/`** (ou **`CD/`** para jogos em CD).
+   * Capas de jogos na pasta **`ART/`**.
+   * Jogos de PS1 (VCD) na pasta **`POPS/`**.
+3. Conecte o HD de volta no PlayStation 2 e ligue o console. O PS2 inicializará pelo OSDMenu, abrirá o OPL em Português com suporte a widescreen e você poderá jogar direto do HD!
+
+---
+
+## 📁 Estrutura de Arquivos no Volume exFAT (`OPL`)
+
+Ao conectar o HD formatado no computador, o volume exFAT terá a seguinte organização:
+
+```
+E:\ (Volume exFAT: OPL)
+├── APPS/                       # Aplicativos homebrew do PS2
+├── ART/                        # Capas dos jogos (COV, ICO, BG)
+├── CD/                         # Imagens ISO/ZSO de jogos PS2 em CD
+├── CFG/                        # Arquivos individuais de configuração dos jogos
+├── CHT/                        # Cheats e códigos de trapaça
+├── DVD/                        # Imagens ISO/ZSO de jogos PS2 em DVD
+├── LNG/                        # Arquivos de idioma e fontes do OPL
+├── OPL/                        # Arquivos centrais do OPL
+│   ├── OPNPS2LD.ELF            # Executável do OPL para In-Game Reset (mass:/)
+│   ├── conf_opl.cfg            # Configurações do OPL (vmode=0, widescreen, IGR)
+│   ├── conf_hdd.cfg            # Mapeamento do driver BDM para exFAT interno
+│   ├── lang_Portuguese_BR.lng  # Arquivo de tradução
+│   └── font_Portuguese_BR.ttf  # Fonte com acentuação gráfica
+├── POPS/                       # Jogos de PS1 (.VCD) convertidos
+├── THM/                        # Temas visuais para a interface do OPL
+├── VMC/                        # Memory Cards Virtuais (Virtual Memory Cards)
+└── conf_opl.cfg                # Configuração espelhada na raiz para compatibilidade
+```
+
+---
+
+## ⚙️ Especificações Técnicas e Arquitetura
+
+Para detalhes completos de engenharia de software, mapeamento de setores LBA, integração KELF e especificações do driver BDM, consulte o documento:
+* 📄 **[SDD.md (Software Design Document)](SDD.md)**
+
+---
+
+## 🤝 Créditos e Agradecimentos
+
+* **GDX-X**: Criador do [PFS-BatchKit-Manager original](https://github.com/GDX-X/PFS-BatchKit-Manager).
+* **ps2homebrew Team**: Pelo desenvolvimento ativo do [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader), `pfsshell` e `hdl-dump`.
+* **pcm720**: Pelo projeto do [OSDMenu](https://github.com/pcm720/OSDMenu).
+* **krHACKen**: Por ferramentas essenciais como `mbr.img`, POPStarter, CUE2POPS e SCEDoormat_NoME.
+* **gledson999**: Pela tradução oficial para Português do Brasil do Open PS2 Loader.
+* **@alvesbeto**: Autor deste fork, implementando a automação híbrida APA-Jail Minimal + exFAT BDM, atualização dinâmica do OPL, IGR exFAT e correções de vídeo.

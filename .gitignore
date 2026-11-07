@@ -39,6 +39,8 @@ BAT/__BootPackage/LANGS/
 BAT/__BootPackage/LNG_ALL/
 
 # CI / Build release packages
+*.7z
+*.zip
 PFS-BatchKit-Manager*.7z
 PFS-BatchKit-Manager*.zip
 
