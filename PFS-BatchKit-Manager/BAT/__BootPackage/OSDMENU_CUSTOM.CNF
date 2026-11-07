@@ -1,0 +1,11 @@
+OSDSYS_video_mode = AUTO
+OSDSYS_selected_color = 0x10,0x80,0xE0,0x80
+OSDSYS_unselected_color = 0x33,0x33,0x33,0x80
+OSDSYS_scroll_menu = 1
+OSDSYS_num_displayed_items = 5
+name_OSDSYS_ITEM_1 = Open PS2 Loader
+path1_OSDSYS_ITEM_1 = hdd0:__common:pfs:/OPL/OPNPS2LD.ELF
+name_OSDSYS_ITEM_2 = LaunchELF
+path1_OSDSYS_ITEM_2 = hdd0:__sysconf:pfs:/FMCB/BOOT.ELF
+name_OSDSYS_ITEM_3 = Free HDBoot Configurator
+path1_OSDSYS_ITEM_3 = hdd0:__sysconf:pfs:/FMCB/FMCB_CFG.ELF

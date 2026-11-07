@@ -88,7 +88,7 @@ ping -n 1 -w 2000 github.com >nul
 			echo Unable to PING^^!
 			"%~dp0BAT\Diagbox" gd 07
 			) else (
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/GDX-X/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/!PFS-BatchKit-Manager.bat" -O "%~dp0TMP\!PFS-BatchKit-Manager2.bat" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/!PFS-BatchKit-Manager.bat" -O "%~dp0TMP\!PFS-BatchKit-Manager2.bat" >nul 2>&1
 for %%F in ( "!PFS-BatchKit-Manager2.bat" ) do if %%~zF==0 del "%%F"
 
 "%~dp0BAT\busybox" md5sum "%~dp0TMP\!PFS-BatchKit-Manager2.bat" 2>&1 | "%~dp0BAT\busybox" grep -o "[0-9a-z]\{32\}" > "%~dp0TMP\CheckUPDATE.txt" & set /p CheckUPDATE=<"%~dp0TMP\CheckUPDATE.txt"
@@ -224,24 +224,69 @@ if !@TotalPS2HDD! gtr 1 (
     set /P @hdl_path=<"%~dp0TMP\hdl-hdd.txt"
 	
 	if not defined @hdl_path (
-   "%~dp0BAT\Diagbox" gd 0c
-   		echo         Playstation 2 HDD Not Detected
-   		echo         Drive Must Be Formatted First
-   		echo\
-   		echo\
-   "%~dp0BAT\Diagbox" gd 07
-   		rmdir /Q/S "%~dp0TMP" >nul 2>&1
-   	    pause & (goto mainmenu)
-   	 ) else (
-	 
+		powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__AutoDetect_PS2_HDD.ps1" -RootPath "%~dp0." > "%~dp0TMP\detected_hdd.txt" 2>nul
+		set /p @DetectedHDD=<"%~dp0TMP\detected_hdd.txt"
+		if defined @DetectedHDD if not "!@DetectedHDD!"=="NONE" set "@hdl_path=!@DetectedHDD!"
+	)
+
+	if defined @hdl_path goto LoadDetectedHDD
+
+	if not defined @hdl_path (
+		"%~dp0BAT\Diagbox" gd 0e
+		echo\
+		echo =========================================================================
+		echo  Nenhum disco com formatacao PS2 ativa foi detectado automaticamente.
+		echo =========================================================================
+		"%~dp0BAT\Diagbox" gd 07
+		echo.
+		echo  Isso acontece quando o HD ainda nao foi formatado ou e um disco novo.
+		echo.
+		echo  [1] Formatar o HD agora (APA-Jail exFAT ou Classico) [Recomendado]
+		echo  [2] Selecionar um disco fisico manualmente (escolher da lista)
+		echo  [3] Tentar detectar novamente (Reescanear HDs)
+		echo  [4] Continuar para o Menu Principal
+		echo.
+		CHOICE /C 1234 /M "Escolha uma opcao:"
+		if errorlevel 4 (
+			rmdir /Q/S "%~dp0TMP" >nul 2>&1
+			goto mainmenu
+		)
+		if errorlevel 3 goto ScanningPS2HDD
+		if errorlevel 2 goto ManualSelectPhysicalHDD
+		if errorlevel 1 goto formatHDDtoPS2
+	)
+	goto ScanningPS2HDD
+
+:ManualSelectPhysicalHDD
+	cls
+	echo\
+	echo =========================================================================
+	echo  Discos Fisicos Conectados ao Computador
+	echo =========================================================================
+	powershell -Command "Get-WmiObject Win32_DiskDrive | Select-Object Model,DeviceID" | "%~dp0BAT\busybox" sed "/\\.\\PHYSICALDRIVE0/d" | "%~dp0BAT\busybox" grep "PHYSICALDRIVE"
+	echo -------------------------------------------------------------------------
+	echo Digite apenas o numero do PHYSICALDRIVE (ex: para PHYSICALDRIVE1, digite 1):
+	set "NumberPS2HDD="
+	set /p NumberPS2HDD="Numero do Disco [ou Enter para voltar]: "
+	if "!NumberPS2HDD!"=="" goto ScanningPS2HDD
+	set "@hdl_path=hdd!NumberPS2HDD!:"
+	set "@pfsshell_path=\\.\PhysicalDrive!NumberPS2HDD!"
+	goto LoadDetectedHDD
+
+:LoadDetectedHDD
 	REM GET HDD Informations
 	echo !@hdl_path!| "%~dp0BAT\busybox" sed "s/hdd//g; s/://g" > "%~dp0TMP\NumberPS2HDD.txt" & set /P @NumberPS2HDD=<"%~dp0TMP\NumberPS2HDD.txt"
 	set @pfsshell_path=\\.\PhysicalDrive!@NumberPS2HDD!
 	powershell -Command "Get-WmiObject -Query \"SELECT Model FROM Win32_DiskDrive WHERE DeviceID='\\\\.\\PHYSICALDRIVE!@NumberPS2HDD!'\" | Select-Object -ExpandProperty Model" | "%~dp0BAT\busybox" sed "s/USB Device//g; s/Disk Device//g; s/[[:space:]]*$//g" > "%~dp0TMP\ModelePS2HDD.txt" & set /P @ModelePS2HDD=<"%~dp0TMP\ModelePS2HDD.txt"
 	powershell -Command "Get-WmiObject -Query \"SELECT Status FROM Win32_DiskDrive WHERE DeviceID='\\\\.\\PHYSICALDRIVE!@NumberPS2HDD!'\" | Select-Object -ExpandProperty Status" > "%~dp0TMP\StatusPS2HDD.txt" & set /P @StatusPS2HDD=<"%~dp0TMP\StatusPS2HDD.txt" & if not defined @StatusPS2HDD set @StatusPS2HDD=UNKNOWN
 	
-	"%~dp0BAT\hdl_dump" query | "%~dp0BAT\busybox" grep "!@hdl_path!" > "%~dp0TMP\TotalHDD_Size.txt"
+	"%~dp0BAT\hdl_dump" query | "%~dp0BAT\busybox" grep "!@hdl_path!" > "%~dp0TMP\TotalHDD_Size.txt" 2>nul
 	for /f "usebackq tokens=2" %%s in ("%~dp0TMP\TotalHDD_Size.txt") do set TotalHDD_Size=%%s
+	if not defined TotalHDD_Size (
+		powershell -NoProfile -Command "try { $d = Get-Disk -Number !@NumberPS2HDD! -ErrorAction SilentlyContinue; if ($d) { [math]::Round($d.Size / 1MB) } } catch {}" > "%~dp0TMP\disk_size.txt" 2>nul
+		set /p TotalHDD_Size=<"%~dp0TMP\disk_size.txt"
+	)
+	if not defined TotalHDD_Size set TotalHDD_Size=0
 	if !TotalHDD_Size! LSS 1000 (set @TotalHDD_Size=!TotalHDD_Size!MB) else (set /a "value=!TotalHDD_Size! / 1000" & set /a "remainder=!TotalHDD_Size! %% 1000" & set @TotalHDD_Size=!value!.!remainder!GB)
 
 	"%~dp0BAT\Diagbox" gd 0f
@@ -252,11 +297,7 @@ if !@TotalPS2HDD! gtr 1 (
 
      REM Creating HDD Cache
 	 call "%~dp0BAT\__ReloadHDD_cache.bat"
-     )
- endlocal
-endlocal
-
-cd /d "%~dp0" & IF EXIST "%~dp0TMP" rmdir /Q/S "%~dp0TMP" >nul 2>&1
+	 goto mainmenu
 
 :mainmenu
 "%~dp0BAT\Diagbox" gd 0f
@@ -266,10 +307,6 @@ cls
 title PFS BatchKit Manager v1.2.0 By GDX
 echo.PFS BatchKit Manager v1.2.0 By GDX
 echo.-------------------------------------------------------------------------------------------------------------
-endlocal
-endlocal
-setlocal EnableDelayedExpansion
-setlocal EnableExtensions
 call "%~dp0BAT\__Cache\HDD.BAT" >nul 2>&1 & call "%~dp0BAT\settings.bat" >nul 2>&1
 if defined @hdl_path (
 "%~dp0BAT\Diagbox" gd 03
@@ -325,7 +362,7 @@ if "!choice!"=="13" (goto ScanningPS2HDD)
 if "!choice!"=="14" (goto PFSBMSettings)
 
 if "!choice!"=="15" (start https://ko-fi.com/J3J6PIQ9O)
-if "!choice!"=="20" (start https://github.com/GDX-X/PFS-BatchKit-Manager)
+if "!choice!"=="20" (start https://github.com/alvesbeto/PFS-BatchKit-Manager)
 
 (goto mainmenu)
 
@@ -370,7 +407,7 @@ set "choice=" & set /p choice=Select Option:
 setlocal EnableDelayedExpansion
 if "!choice!"=="1" start https://twitter.com/GDX_SM
 if "!choice!"=="3" start https://www.youtube.com/user/GDXTV/videos
-if "!choice!"=="4" start https://github.com/GDX-X/PFS-BatchKit-Manager
+if "!choice!"=="4" start https://github.com/alvesbeto/PFS-BatchKit-Manager
 if "!choice!"=="5" start https://ko-fi.com/J3J6PIQ9O
 if "!choice!"=="6" cls & type "%~dp0\Credits.txt" & echo\ & echo\ & echo\ & pause
 if "!choice!"=="7" start https://www.psx-place.com/forums/#playstation-2-forums.6
@@ -447,6 +484,9 @@ ECHO  [2] Extract OPL Resources
 ECHO  [3] Create Cheat file with mastercode
 ECHO  [4] Create Virtual Memory Card
 ECHO  [5] Create shortcuts for your APPs or PS1 games in APPS tab
+"%~dp0BAT\Diagbox" gd 0a
+ECHO  [6] Update OPL (GitHub) + Language + IGR config
+"%~dp0BAT\Diagbox" gd 0f
 ECHO.
 REM ECHO  [8] Clean OPL Ressource Partition 
 ECHO  [9] Change OPL Resources Partition
@@ -462,6 +502,7 @@ if "!choice!"=="2" (goto BackupARTCFGCHTVMC)
 if "!choice!"=="3" call "%~dp0BAT\make_cheat_mastercode.bat"
 if "!choice!"=="4" (goto CreateVMC)
 if "!choice!"=="5" (goto CreateShortcutsOPL)
+if "!choice!"=="6" (goto SyncExfatOplConfig)
 if "!choice!"=="9" (goto ChangeOPLResources)
 
 if "!choice!"=="10" (goto Mainmenu)
@@ -684,7 +725,7 @@ ping -n 1 -w 2000 github.com >nul
 			echo Unable to PING^^!
 			"%~dp0BAT\Diagbox" gd 07
 			) else (
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/GDX-X/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.BAT" -O "%~dp0TMP\APPS.BAT" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.BAT" -O "%~dp0TMP\APPS.BAT" >nul 2>&1
 for %%F in ( "APPS.BAT" ) do if %%~zF==0 (del "%%F")
 
 if exist "APPS.BAT" (
@@ -696,9 +737,9 @@ echo\
 echo\
 echo Updating...
 move "APPS.BAT" "%~dp0BAT" >nul 2>&1
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/GDX-X/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.zip" -O "%~dp0TMP\APPS.zip" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.zip" -O "%~dp0TMP\APPS.zip" >nul 2>&1
 for %%F in ( "APPS.zip" ) do if %%~zF==0 (del "%%F" ) else (move "APPS.zip" "%~dp0BAT" >nul 2>&1)
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/GDX-X/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPDB.xml" -O "%~dp0TMP\APPDB.xml" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPDB.xml" -O "%~dp0TMP\APPDB.xml" >nul 2>&1
 for %%F in ( "APPDB.xml" ) do if %%~zF==0 (del "%%F" ) else (move "APPDB.xml" "%~dp0BAT" >nul 2>&1)
   			)
  		) else (set "checkappsupdate=")
@@ -833,8 +874,10 @@ ECHO  [1] Install HDD-OSD ^(Browser 2.0^)
 ECHO  [2] Uninstall HDD-OSD
 ECHO  [3] Partitions Management
 ECHO  [4] FreeHDBoot Management
-REM ECHO [5] Install PSBBN ^(Playstation Broadband Navigator^)
-REM ECHO [6] Install Linux Kernel
+ECHO  [5] Update OPL, Languages + IGR (GitHub + PFS)
+ECHO  [6] Install HOSDMenu + exFAT boot stack ^(APA-Jail^)
+ECHO  [7] Sync exFAT OPL configs only ^(Sem reinstalar bootloader^)
+REM ECHO [8] Install PSBBN ^(Playstation Broadband Navigator^)
 ECHO.
 ECHO  [10] Back
 ECHO  [12] Exit
@@ -846,6 +889,9 @@ if "!choice!"=="1" (goto InstallHDDOSD)
 if "!choice!"=="2" (goto UnInstallHDDOSD)
 if "!choice!"=="3" (goto HDDOSDPartManagement)
 if "!choice!"=="4" (goto FreeHDBootManagement)
+if "!choice!"=="5" (goto SyncExfatOplConfig)
+if "!choice!"=="6" (goto InstallHOSDMenuApaJail)
+if "!choice!"=="7" (goto ApplyOsdExfatBootHints)
 
 if "!choice!"=="10" (goto Mainmenu)
 if "!choice!"=="12" exit
@@ -933,6 +979,7 @@ echo.
 ECHO  [=====^| FreeHDBoot Management ^|=====]
 ECHO.
 ECHO  [1] Fix Graphical Corruption OSD
+ECHO  [2] Patch FreeHDBoot for HOSDMenu / exFAT paths
 ECHO.
 ECHO  [10] Back
 ECHO  [11] Back to main menu
@@ -942,11 +989,62 @@ echo.------------------------------------------
 set "choice=" & set /p choice=Select Option:
 
 if "!choice!"=="1" (goto FreeHDBootFixOSDCorruption)
+if "!choice!"=="2" (goto FreeHDBootPatchExfat)
 
 if "!choice!"=="10" (goto HDDOSDMenu)
 if "!choice!"=="11" (goto mainmenu)
 if "!choice!"=="12" exit
 
+(goto FreeHDBootManagement)
+
+:SyncExfatOplConfig
+IF NOT DEFINED @hdl_path ( echo [NO DEVICE] & pause & goto HDDOSDMenu )
+call "%~dp0BAT\__Update_OPL_Latest.bat" "%~dp0"
+pause
+(goto HDDOSDMenu)
+
+:InstallHOSDMenuApaJail
+IF NOT DEFINED @hdl_path ( echo [NO DEVICE] & pause & goto HDDOSDMenu )
+cls
+echo\
+echo\
+echo Install Boot Stack on APA-Jail (exFAT HDD):
+echo ---------------------------------------------------
+echo  [1] FreeHDBoot 1.966 MBR (Official FHDB + HOSDMenu + OPL) [Recomendado]
+echo  [2] krHACKen Universal MBR (Para consoles com Chip Matrix/Modbo)
+echo  [3] Cancel
+echo.
+CHOICE /C 123 /M "Select Bootloader Type:"
+if errorlevel 3 (goto HDDOSDMenu)
+set "SELECTED_BOOT=FHDB"
+if errorlevel 2 set "SELECTED_BOOT=KRHACKEN"
+if errorlevel 1 if not errorlevel 2 set "SELECTED_BOOT=FHDB"
+
+call "%~dp0BAT\__Install_HOSDMenu.bat" "%~dp0" !SELECTED_BOOT!
+if errorlevel 1 (
+	echo [ERROR] Installation failed. Check TMP\pfsshell_install.log.
+) else (
+	echo.
+	echo APA-Jail boot stack - !SELECTED_BOOT! - instalado com sucesso!
+	echo Dica: Use a Opcao [5] para atualizar o OPL e configurar seu idioma (ex: Portugues_BR).
+)
+if defined @hdl_path call "%~dp0BAT\__ReloadHDD_cache.bat" >nul 2>&1
+pause
+(goto HDDOSDMenu)
+
+:ApplyOsdExfatBootHints
+IF NOT DEFINED @hdl_path ( echo [NO DEVICE] & pause & goto HDDOSDMenu )
+call "%~dp0BAT\__Patch_FreeHDBoot_Exfat.bat" "%~dp0"
+call "%~dp0BAT\__Sync_Exfat_Opl_Config.bat" "%~dp0"
+echo FreeHDBoot menu + exFAT OPL updated.
+pause
+(goto HDDOSDMenu)
+
+:FreeHDBootPatchExfat
+IF NOT DEFINED @hdl_path ( echo [NO DEVICE] & pause & goto FreeHDBootManagement )
+call "%~dp0BAT\__Patch_FreeHDBoot_Exfat.bat" "%~dp0"
+echo FreeHDBoot patch applied ^(if FREEHDB.CNF was present^).
+pause
 (goto FreeHDBootManagement)
 
 :PS2OnlineMenu
@@ -1026,7 +1124,11 @@ ECHO  [7] NBD Server (Only to access PS2 HDD from network)
 "%~dp0BAT\Diagbox" gd 06
 ECHO  [8] Hack your HDD To PS2 Format ^(Only intended to be used as a boot entry point on wLaunchELF^)
 "%~dp0BAT\Diagbox" gd 0c
-ECHO  [9] Format HDD To PS2 Format
+ECHO  [9] Format HDD To PS2 Format ^(Classic APA or APA-Jail + exFAT^)
+"%~dp0BAT\Diagbox" gd 06
+ECHO  [11] Complete APA-Jail exFAT only ^(WSL, keeps existing APA partitions^)
+"%~dp0BAT\Diagbox" gd 0c
+ECHO  [13] Repair PS2 detection after APA-Jail ^(hdl_dump / volume OPL^)
 "%~dp0BAT\Diagbox" gd 0f
 ECHO.
 ECHO  [10] Back
@@ -1044,11 +1146,75 @@ if "!choice!"=="6" (goto PS2HDDExplore)
 if "!choice!"=="7" (goto NBDServer)
 if "!choice!"=="8" (goto hackHDDtoPS2)
 if "!choice!"=="9" (goto formatHDDtoPS2)
+if "!choice!"=="11" (goto CompleteApaJailExfatOnly)
+if "!choice!"=="13" (goto RepairApaJailHeader)
 
 if "!choice!"=="10" (goto Mainmenu)
 if "!choice!"=="12" exit
 
 (goto HDDManagementMenu)
+
+:CompleteApaJailExfatOnly
+IF NOT DEFINED @hdl_path (
+echo [NO DEVICE] Reload HDD in main menu first.
+pause
+goto HDDManagementMenu
+)
+IF NOT DEFINED @pfsshell_path (
+echo @pfsshell_path missing. Reload HDD.
+pause
+goto HDDManagementMenu
+)
+echo.
+echo Complete APA-Jail exFAT on [!@hdl_path!] - existing APA partitions are kept.
+echo Requires WSL + exfatprogs. Run PFS BatchKit Manager as Administrator.
+echo.
+CHOICE /C YN /M "Continue"
+IF ERRORLEVEL 2 goto HDDManagementMenu
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Format_ApaJail_Minimal.ps1" -PhysicalDrivePath "!@pfsshell_path!" -HdlDevicePath "!@hdl_path!" -RootPath "%~dp0."
+set APAJ_EC=!ERRORLEVEL!
+if !APAJ_EC!==2 (
+echo.
+echo WSL not ready. Reboot after wsl --install, install Ubuntu, then retry option 11.
+) else if !APAJ_EC! GEQ 1 (
+echo APA-Jail step failed.
+) else (
+call "%~dp0BAT\__Install_HOSDMenu.bat" "%~dp0"
+call "%~dp0BAT\__ReloadHDD_cache.bat" >nul 2>&1
+echo Done. Volume OPL should appear in Windows.
+)
+pause
+goto HDDManagementMenu
+
+:RepairApaJailHeader
+echo.
+echo Repair PS2 APA header after APA-Jail ^(sfdisk overwrites LBA 0; exFAT OPL is kept^).
+echo Requires Administrator + WSL.
+echo Detects disk: OPL label, exFAT, HDD cache, or @pfsshell_path if loaded.
+echo.
+if not defined @pfsshell_path (
+echo No @pfsshell_path in cache â€” repair will auto-detect or use PhysicalDrive1 if it is the only large disk.
+) else (
+echo Using cached drive: !@pfsshell_path!
+)
+echo.
+CHOICE /C YN /M "Continue"
+IF ERRORLEVEL 2 goto HDDManagementMenu
+if defined @pfsshell_path (
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Repair_ApaJail_ApaHeader.ps1" -PhysicalDrivePath "!@pfsshell_path!" -RootPath "%~dp0."
+) else (
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Repair_ApaJail_ApaHeader.ps1" -RootPath "%~dp0."
+)
+set REPAIR_EC=!ERRORLEVEL!
+if !REPAIR_EC!==2 (
+echo WSL not ready.
+) else if !REPAIR_EC! GEQ 1 (
+echo Repair failed.
+) else (
+echo Repair done. Return to main menu and rescan HDD.
+)
+pause
+goto HDDManagementMenu
 
 :ShowPartitionInfos
 "%~dp0BAT\Diagbox" gd 0f
@@ -4424,6 +4590,7 @@ echo ---------------------------------------------------
 
 	echo\
 	"%~dp0BAT\busybox" sed -e "s/\\\\.\\\PhysicalDrive/PHYSICALDRIVE/g; s/://g" "%~dp0TMP\hdl-hdd.txt" > "%~dp0TMP\hdl-hddinfo.txt" & set /P @hdl_pathinfo=<"%~dp0TMP\hdl-hddinfo.txt"
+	powershell -NoProfile -Command "if('%@pfsshell_path%' -match 'PhysicalDrive(\d+)'){ $Matches[1] | Out-File -Encoding ascii '%~dp0TMP\hdd-disknum.txt' }"
 	powershell -Command "Get-WmiObject -Query \"SELECT Model, Name, Status FROM Win32_DiskDrive\" | Format-Table Model, Name, Status -AutoSize" > "%~dp0TMP\hdl-hddinfolog.txt"
     type "%~dp0TMP\hdl-hddinfolog.txt" | findstr "Model %@hdl_pathinfo%" | "%~dp0BAT\busybox" sed -e "3,100d" > "%~dp0TMP\hdl-hddinfotmp.txt" & type "%~dp0TMP\hdl-hddinfotmp.txt"
 	
@@ -4444,9 +4611,20 @@ IF %ERRORLEVEL%==1 set @pfs_formathdd=yes
 IF %ERRORLEVEL%==2 set @pfs_formathdd=no & set "hdlhddm=" & set "hdlhdd=" & set "@pfsshell_path=" & set "@hdl_pathinfo=" & (goto formatHDDtoPS2)
 
 echo\
+"%~dp0BAT\Diagbox" gd 06
+echo Format mode:
+echo         1^) Classic APA only ^(empty APA, finish on PS2 with wLaunchELF^)
+echo         2^) APA-Jail minimal OSD ^(~512MB PFS boot + exFAT OPL for games/apps^)
+"%~dp0BAT\Diagbox" gd 0f
+echo\
+CHOICE /C 12 /M "Select format mode:"
+IF %ERRORLEVEL%==1 set @pfs_format_mode=classic
+IF %ERRORLEVEL%==2 set @pfs_format_mode=apajail
+
+echo\
 
 CHOICE /C YN /m "Confirm"
-IF %ERRORLEVEL%==2 set "hdlhdd=" & set "hdlhddm=" & set "@pfsshell_path=" & set "@hdl_pathinfo=" & (goto formatHDDtoPS2)
+IF %ERRORLEVEL%==2 set "hdlhdd=" & set "hdlhddm=" & set "@pfsshell_path=" & set "@hdl_pathinfo=" & set "@pfs_format_mode=" & (goto formatHDDtoPS2)
 
 	IF "!@PSX2DESR_HDD!"=="Yes" (
 	"%~dp0BAT\Diagbox" gd 0c
@@ -4474,10 +4652,28 @@ type "%~dp0TMP\hdl-hddinfotmp.txt"
 echo\
     
     echo         Formatting in Progress...
+	IF /I "!@pfs_format_mode!"=="apajail" (
+		call "%~dp0BAT\__Create_Minimal_OSD_Partitions.bat" "%~dp0"
+		if errorlevel 1 (
+			echo         Failed to create minimal OSD PFS partitions.
+		) else (
+			echo         Minimal PFS partitions created ^(__sysconf, __system, __contents, __common^).
+			powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Format_ApaJail_Minimal.ps1" -PhysicalDrivePath "%@pfsshell_path%" -HdlDevicePath "!hdlhdd!" -RootPath "%~dp0."
+			set APAJ_EC=!ERRORLEVEL!
+			if !APAJ_EC!==2 (
+				echo         APA-Jail exFAT step incomplete - fix WSL ^(reboot after install^), then use option 11.
+			) else if !APAJ_EC! GEQ 1 (
+				echo         APA-Jail exFAT step failed. Check WSL, exfatprogs, and run as Administrator.
+			) else (
+				call "%~dp0BAT\__Install_HOSDMenu.bat" "%~dp0"
+			)
+		)
+	) else (
 	echo device %@pfsshell_path% > "%~dp0TMP\pfs-log.txt"
     echo initialize yes >> "%~dp0TMP\pfs-log.txt"
   	echo exit >> "%~dp0TMP\pfs-log.txt"
 	type "%~dp0TMP\pfs-log.txt" | "%~dp0BAT\pfsshell" >nul 2>&1
+	)
 
 	echo %@pfsshell_path% > "%~dp0TMP\disk-log.txt"
 	"%~dp0BAT\busybox" sed -i "s/\\\\.\\\PhysicalDrive/select disk /g" "%~dp0TMP\disk-log.txt"
@@ -4503,7 +4699,18 @@ echo\
 echo ---------------------------------------------------
 "%~dp0BAT\Diagbox" gd 0a
 echo Formatting Completed...
-echo\
+if /I "!@pfs_format_mode!"=="apajail" (
+	echo.
+	echo =========================================================================
+	echo  PROXIMOS PASSOS PARA APA-JAIL (exFAT):
+	echo =========================================================================
+	echo  1. O volume 'OPL' ja esta pronto no Windows para receber seus jogos.
+	echo  2. Copie seus jogos (.iso/.zso) diretamente na pasta DVD ou CD do volume OPL.
+	echo  3. Para atualizar e configurar o idioma do OPL (ex: Portugues_BR):
+	echo     Acesse no Menu Principal: [8] OSD/XMB Management -^> [5]
+	echo =========================================================================
+	echo.
+)
 echo\
 "%~dp0BAT\Diagbox" gd 07
 
@@ -4601,6 +4808,8 @@ echo ^(3^) Install FreeHDBoot
 echo In wLaunchELF FileBrowser ^> Mass ^> APPS ^> FreeMcBoot ^> FMCBInstaller.elf Press Circle for Launch ^> Press R1 ^> Install FHDB ^(From HDD^)
 echo.
 echo ^(4^) Your hard drive will be properly formatted and hacked after that
+echo.
+echo For APA-Jail + exFAT: use HDD Management option 9 mode 2 on PC ^(WSL^), then OSD/XMB options 1 and 6.
 echo\
 "%~dp0BAT\Diagbox" gd 0c 
 echo ARE YOU SURE you want to HACK this hard drive ? this is irreversible:
@@ -4720,10 +4929,27 @@ echo\
 echo Checking Files For HDD-OSD
 echo ---------------------------------------------------
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Install_HDDOSD_FromLocal7z.ps1" -RootPath "%~dp0." -Quiet >nul 2>&1
+
     if not exist "%~dp0HDD-OSD\__system\osd100\hosdsys.elf" (
     "%~dp0BAT\Diagbox" gd 0c
     echo         No HDD-OSD files found^^!
     echo\
+    echo         The BatchKit repo does not ship Sony HDD-OSD binaries.
+    echo         Obtain HDD-OSD 1.10U archive yourself ^(see HDD-OSD\README.txt^).
+    echo         Extract so this file exists:
+    echo           %~dp0HDD-OSD\__system\osd100\hosdsys.elf
+    echo         Expected 7z MD5: 403202A03B910FB6FBD522D6AB5007E7
+    echo         hosdsys.elf MD5 ^(1.10U^): ca9ab553e8b51259ccf1ca4ea2d1bc00
+    echo\
+    echo         [PT] Voce ainda nao extraiu o HDD-OSD 1.10U neste PC.
+    echo         Obtenha HDDOSD-1.10U.7z, extraia em HDD-OSD\ e tente de novo.
+    if exist "%~dp0POPS-Binaries\POPSTARTER.ELF" (
+    echo\
+    echo         POPS-Binaries ^(POPStarter^) e outro pacote - nao traz hosdsys.elf.
+    )
+    echo\
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0BAT\__Verify_HDD-OSD_Files.ps1" -RootPath "%~dp0."
     echo\
     rmdir /Q/S "%~dp0TMP" >nul 2>&1
 	"%~dp0BAT\Diagbox" gd 0f
@@ -5084,6 +5310,16 @@ echo\
 	)
 	
 	echo         HDD-OSD Completed...
+	call "%~dp0BAT\__Sync_Exfat_Opl_Config.bat" "%~dp0"
+	echo         Boot partitions __sysconf / __system updated. exFAT OPL synced when volume OPL is mounted.
+	call "%~dp0BAT\__ReloadHDD_cache.bat" >nul 2>&1
+	call "%~dp0BAT\__Cache\HDD.BAT" >nul 2>&1
+	if /I "!@APA_JAIL!"=="Yes" (
+	echo.
+	echo APA-Jail detected. Install HOSDMenu now ^(OSD/XMB option 6^)^?
+	CHOICE /C YN /M "Install HOSDMenu"
+	IF !ERRORLEVEL!==1 call "%~dp0BAT\__Install_HOSDMenu.bat" "%~dp0"
+	)
 	
  ) else ( echo         HDDOSD - Installation Canceled... )
 
@@ -5095,6 +5331,7 @@ echo ---------------------------------------------------
 "%~dp0BAT\Diagbox" gd 0a
 echo Installation Completed...
 echo\
+echo For APA-Jail: use RiptOPL/OPL BDM + HOSDMenu ^(pcm720/OSDMenu^) for exFAT games. Install FHDB on __system ^(boot^).
 echo\
 "%~dp0BAT\Diagbox" gd 07
 

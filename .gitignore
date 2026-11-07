@@ -1,0 +1,58 @@
+# ========================================================
+# PFS-BatchKit-Manager .gitignore
+# ========================================================
+
+# Temporary directories and staging folders
+TMP/
+**/TMP/
+pfs_stage/
+**/pfs_stage/
+
+# Temporary and log files
+*.tmp
+*.log
+*.bak
+CheckUPDATE.txt
+CheckOriginal.txt
+hdd-disknum.txt
+opl_drive_letter.txt
+opl_selected_lang.txt
+!PFS-BatchKit-Manager2.bat
+**/!PFS-BatchKit-Manager2.bat
+
+# Wget and network cache
+.wget-hsts
+**/.wget-hsts
+
+# Runtime hardware scan cache
+**/BAT/__Cache/
+BAT/__Cache/
+
+# Dynamically downloaded release assets and unpacked staging
+**/BAT/OPNPS2LD-LANGS_LATEST.7z
+**/BAT/OPNPS2LD_LATEST.ELF
+BAT/OPNPS2LD-LANGS_LATEST.7z
+BAT/OPNPS2LD_LATEST.ELF
+**/BAT/__BootPackage/LANGS/
+**/BAT/__BootPackage/LNG_ALL/
+BAT/__BootPackage/LANGS/
+BAT/__BootPackage/LNG_ALL/
+
+# CI / Build release packages
+PFS-BatchKit-Manager*.7z
+PFS-BatchKit-Manager*.zip
+
+# Operating system metadata
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Root development working copy duplicates (source of truth is PFS-BatchKit-Manager/)
+/!PFS-BatchKit-Manager.bat
+/BAT/
+/HDD-OSD/
+/Changelog.txt
+/Credits.txt
+/FREEHDB.CNF
+/Readme.txt
+/settings.ini

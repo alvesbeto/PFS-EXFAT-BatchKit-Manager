@@ -1,0 +1,87 @@
+---
+description: APA-Jail minimal OSD + exFAT, HDD-OSD boot partition, HOSDMenu/FreeHDBoot exFAT support and Latest OPL BDM
+globs: PFS-BatchKit-Manager/**/*
+alwaysApply: false
+---
+
+# PS2 APA-Jail Minimal + exFAT & OSD Boot Architecture (PFS BatchKit Manager)
+
+## 1. Visão Geral da Arquitetura (APA-Jail Type-A2)
+
+Estrutura de disco híbrida para armazenamento interno de PS2 (FAT via Adaptador de Rede IDE/SATA):
+
+- **Primeiros setores (LBA 0–4194303, ~2GB)**:
+  - **LBA 0 (Setor 0)**: Cabeçalho híbrido:
+    - Offset `0x00–0x03`: APA Checksum de 32 bits (soma de palavras uint32 dos índices 1 a 255);
+    - Offset `0x04–0x07`: Magic `APA\0` (0x00415041);
+    - Offset `0x10–0x2F`: Nome da partição (`__mbr\0...`);
+    - Offset `0xE0–0xE7`: Magic APA-Jail Type-A2 (`APAJ-A2\0`);
+    - Offset `0x130–0x133`: LBA inicial do bootloader KELF (`16`);
+    - Offset `0x134–0x137`: Tamanho em setores do KELF (`152` para FHDB 1.966 ou `898` para krHACKen);
+    - Offset `0x1BE–0x1FD` (bytes 446–509): Tabela de Partições PC MBR definindo a partição de dados exFAT `OPL`;
+    - Offset `0x1FE–0x1FF`: Assinatura de boot PC MBR `0x55 0xAA`.
+  - **LBA 16 (Offset 8192)**: Executável KELF do bootloader (criptografado e assinado via MagicGate / secrman):
+    - **Opção 1 (Oficial):** FreeHDBoot 1.966 `MBR.XLF` (carrega `pfs0:/osd/osdmain.elf` em `__system`, exibindo a logo do FHDB e o menu OSD);
+    - **Opção 2 (Universal):** krHACKen Universal MBR (`mbr.img`), que inicia wLaunchELF diretamente (compatível com modchips Matrix Infinity / Modbo).
+  - **Partições PFS mínimas (128 MiB cada)**:
+    - `__system`: Contém `osd/osdmain.elf` (FHDB.XLF), `osd/osdsys.elf`, `osd/osd110.elf` e `osdmenu/hosdmenu.elf`;
+    - `__sysconf`: Contém `FMCB/FREEHDB.CNF`, `FMCB/BOOT.ELF`, `FMCB/FMCB_CFG.ELF`, IRXs USB e configs de menu;
+    - `__common`: Contém `OPL/OPNPS2LD.ELF` (última release GitHub), `OPL/conf_opl.cfg` e `OPL/conf_hdd.cfg`;
+    - `__contents`: Partição de suporte para metadados e ícones.
+- **Setor de Recuperação (32 MiB)**: Partição intermediária `RECOVERY` formatada em ext2.
+- **Partição Restante (exFAT - Volume `OPL`)**:
+  - Toda a capacidade restante (até 2TB em MBR) formatada em exFAT com tamanho de cluster de 32K.
+  - Diretórios padrão: `DVD/`, `CD/`, `POPS/`, `APPS/`, `ART/`, `CFG/`, `CHT/`, `LNG/`, `THM/`, `VMC/`, `nhddl/`.
+  - Arquivos de configuração: `conf_opl.cfg`, `CFG/conf_opl.cfg` e `CFG/conf_hdd.cfg`.
+
+---
+
+## 2. Mapa de Componentes e Scripts
+
+| Componente | Script / Arquivo | Responsabilidade |
+|------------|------------------|------------------|
+| Partições PFS mínimas | `BAT/__Create_Minimal_OSD_Partitions.bat` | Criação das partições mínimas de 128M (`__system`, `__sysconf`, `__common`, `__contents`) via `pfsshell`. |
+| Formatação Híbrida APA-Jail | `BAT/__Format_ApaJail_Minimal.ps1` | Criação da partição de dados exFAT via `sfdisk` e `mkfs.exfat` em WSL, mesclagem do cabeçalho APA LBA 0 e cálculo do checksum. |
+| Gravação de MBR KELF | `BAT/__Inject_Mbr_Bootloader.ps1` | Gravação setor a setor via `rawcopy.exe` do KELF no Setor 16 e LBA 0, preservando MBR exFAT e validando integridade. |
+| Preparação de Binários | `BAT/__Build_BootPackage.ps1` | Extração de FMCB 1.966, download do OPL mais recente, cópia de configs e pré-nomeação para upload com `pfsshell`. |
+| Download do OPL Latest | `BAT/__Fetch_Latest_OPL.ps1` | Consulta automática da API GitHub do repositório `ps2homebrew/Open-PS2-Loader` (tag `latest`) e download do `OPNPS2LD.ELF`. |
+| Atualizador Rápido OPL | `BAT/__Update_OPL_Latest.bat` | Atualiza o `OPNPS2LD.ELF` e `conf_opl.cfg` tanto no exFAT (`OPL`) quanto no PFS (`__common:/OPL/`). |
+| Instalação de Boot Stack | `BAT/__Install_HOSDMenu.bat` | Upload de binários em `__system`, `__sysconf`, `__common`, injeção do MBR e sincronização exFAT. |
+| Patch FreeHDBoot | `BAT/__Patch_FreeHDBoot_Exfat.bat` | Configura exibição de logo (`OSDSYS_Skip_Logo=0`, `FastBoot=0`) e atalhos para HOSDMenu e OPL no `FREEHDB.CNF`. |
+| Sincronização exFAT | `BAT/__Sync_Exfat_Opl_Config.bat` | Configuração de pastas e sincronização de `conf_opl.cfg` e `OPNPS2LD.ELF` na raiz e subpastas de `OPL`. |
+| Configuração BDM exFAT | `HDD-OSD/__common/OPL/conf_opl.cfg` | Configuração do OPL para ativar BDM ATA (`enable_bdm_hdd=1`, `usb_mode=2`, `default_device=0`). |
+
+---
+
+## 3. Especificações Técnicas de Baixo Nível
+
+### 3.1. Gravação de Disco Físico no Windows
+- **Problema .NET:** `[System.IO.FileStream]::Write` em handles `\\.\PhysicalDriveX` falha no Windows com `IOException: Operação E/S não funcionará...` devido a checagens de tamanho em dispositivos raw.
+- **Solução Implementada:** Utilização de [`BAT\rawcopy.exe`](file:///c:/Users/beto/Documents/dev/Repositorios/PFS-BatchKit-Manager/PFS-BatchKit-Manager/BAT/rawcopy.exe) com flags `-w` (sem buffering intermediário) e `-l` (sem bloqueio de compartilhamento exclusivo).
+- **Alinhamento:** Todo payload KELF é preenchido com zeros até múltiplo exato de 512 bytes antes da gravação.
+
+### 3.2. Sintaxe do `pfsshell`
+- O comando `put` do `pfsshell.exe` aceita **exclusivamente um argumento** (`put <filename>`).
+- É mandatório que o arquivo local esteja pré-renomeado antes da chamada (ex.: `osdmain.elf`, `osdsys.elf`, `osd110.elf`, `conf_opl.cfg`, `conf_hdd.cfg`).
+
+### 3.3. Configuração do OPL para Detecção de Jogos exFAT
+No OPL v1.2.0 (BDM):
+- `enable_bdm_hdd=1`: Habilita o driver ATA interno do subsistema BDM.
+- `usb_mode=2`: Inicia os serviços BDM em modo automático (Auto).
+- `default_device=0`: Abre o menu principal diretamente na aba **BDM Games**.
+- `autorefresh=1` / `autosort=1`: Atualiza e ordena a lista de ISOs presentes em `/DVD` e `/CD`.
+- `hdd_mode=0`: Desativa a varredura legada APA/HDL para evitar conflitos com partições do HD.
+
+---
+
+## 4. Fluxo de Uso Recomendado
+
+1. **Formatação Inicial (Se novo disco):**
+   * Menu **[9] Format HDD** -> Modo **2 (APA-Jail minimal + exFAT)**.
+2. **Instalação / Atualização do Boot Stack:**
+   * Menu **[8] OSD/XMB Management** -> Opção **[6] Install HOSDMenu + exFAT boot stack**.
+   * Escolher `1` (FreeHDBoot 1.966 oficial com logo) ou `2` (krHACKen Universal MBR para consoles com modchip).
+3. **Atualização Contínua do Open PS2 Loader:**
+   * Menu **[8] OSD/XMB Management** -> Opção **[5] Update Open PS2 Loader to Latest (GitHub) + exFAT BDM**.
+4. **Transferência de Jogos:**
+   * Conectar o HD ao PC e arrastar jogos `.iso` / `.zso` diretamente para as pastas `DVD\` e `CD\` da unidade `OPL`.

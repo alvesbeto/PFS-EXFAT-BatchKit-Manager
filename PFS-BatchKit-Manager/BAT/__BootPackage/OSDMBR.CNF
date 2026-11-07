@@ -1,0 +1,13 @@
+# boot_auto = $HOSDSYS
+boot_cross =
+boot_circle =
+boot_square =
+boot_triangle =
+cdrom_skip_ps2logo = 0
+cdrom_disable_gameid = 0
+cdrom_use_dkwdrv = 0
+ps1drv_enable_fast = 0
+ps1drv_enable_smooth = 0
+ps1drv_use_ps1vn = 1
+app_gameid = 1
+prefer_bbn = 0

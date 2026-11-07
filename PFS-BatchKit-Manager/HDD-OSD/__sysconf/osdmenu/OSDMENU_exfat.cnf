@@ -1,0 +1,16 @@
+# Template for pcm720 OSDMenu / HOSDMenu — launch homebrew and BDM (exFAT) paths.
+# Install to hdd0:/__sysconf/pfs:/osdmenu/OSDMENU.CNF after editing entries.
+# Reference: https://github.com/pcm720/OSDMenu
+
+OSDSYS_video_mode = AUTO
+OSDSYS_num_displayed_items = 5
+cdrom_skip_ps2logo = 0
+app_gameid = 1
+
+# Example: OPL on APA boot partition
+OPL_ELF = hdd0:/__common/OPL/OPNPS2LD.ELF
+
+# Example: games on internal exFAT (APA-Jail volume label OPL)
+# OPL_BDM_DVD = mass:/DVD
+# OPL_BDM_CD = mass:/CD
+# OPL_BDM_POPS = mass:/POPS

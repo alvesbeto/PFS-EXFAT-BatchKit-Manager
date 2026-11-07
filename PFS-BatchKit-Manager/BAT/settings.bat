@@ -1,2 +1,2 @@
-set TitlesLang=French
-set DBLang=Fr
+set TitlesLang=Portuguese
+set DBLang=Pt

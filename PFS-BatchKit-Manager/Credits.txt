@@ -1,0 +1,20 @@
+
+AkuHAK, Uyjulian For maintaining and improving hdl_dump and pfsshell.
+
+NeMesiS, Dekkit, Rs1n For making me want to create this script.
+
+krHACKen For mbr.img, POPStarter, CUE2POPS, SCEDoormat_NoME and more
+
+El_isra For DiagBox.
+
+Roland For NBD Server
+
+SpaceCoyote For 3D PS1 games covers HDD-OSD
+
+LopoTRI, Ripto For the tests carried out.
+
+TnA For giving me some ideas to add to the script.
+
+------------------------------------------------------------------------------
+
+Thanks to the other people I may have forgotten who have contributed to the PS2 scene!

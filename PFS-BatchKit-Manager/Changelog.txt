@@ -1,0 +1,372 @@
+1.3.0 [06/11/2026]
+
+- Added APA-Jail Minimal + exFAT partition scheme formatting and repair for modern OPL BDM HDD support
+- Added OPL GitHub automated updater with dynamic language selection (Portuguese_BR and 33 languages)
+- Added In-Game Reset (IGR) support directly to exFAT partition (mass:/OPL/OPNPS2LD.ELF)
+- Added FreeHDBoot OSDMenu integration with native video mode (vmode=0 Auto) and widescreen support
+- Preserved native game resolution (removed global forced GSM 720p)
+- Updated application update endpoints to point to alvesbeto/PFS-BatchKit-Manager
+
+--------------------------------------------------------------------
+1.2.0 [25/01/2025]
+
+- Fixed a crash when scanning HDD on Windows 11 version 23H2
+- Fixed CFG transfers causing a strange bug
+- Updated Game Infos database PS1 & PS2
+- Updated Title Database for PS1 & PS2
+
+--------------------------------------------------------------------
+1.1.9 [25/10/2024]
+
+- Added an option to create shortcuts for PS1 games to OPL for USB/HDD
+- Added free space check in POPS partitions during installation. If there is no more space in one of the partitions, the file will be ignored. or transfer to another __.POPS# partition
+- Added Option for convert cover ART to 8-bit colors for improved loading in OPL and reduced RAM consumption (Thanks to Ripto for the suggestion).
+- Added ELF CRC hash when generating cheat files.
+- Added Generating cheat files for .bin/.cue files
+- Added Renaming or deletion of PS1 games, will also be updated for shortcuts in the OPL partition
+- Added Features for USB devices (ART,CFG, POPS and more..)
+- Added hdl_serv for PS2 game installation, better transfer speed than NBD Server (But nbd server it's recommended for files transfer)
+- Added Automatic detection of OPL Resource partition. (__common partition will be set by default if the +OPL partition does not exist)
+- Added the ability to change OPL Resources partition, allowing users to specify the default partition for storing ART, CFG, CHT, etc.
+- Added UPSX_SID to replace the old one to get more accurate PS1 gameid
+- Added Full support for educational PS1 games with LSP serial id (compatibility with PSX DESR V1 partition scheme)
+- Added POPS partition information about remaining and used size
+- Added the ability to add a prefix for APPS in title.cfg
+- Added New Apps to downloads (Apollo Save Tool Management)
+- Added HDD information in the menus (total, used, free space and resource partition currently loaded)
+- Added More PS2 Icons for HDD-OSD 4778 PS2 Icons!
+- Added Logs error for non-installed games
+- Added Choice output path for PS2 Games Extraction
+- Added Delete PS2 Games
+- Added New huge PS1 and PS2 database for games infos in multiple languages ​​(En,Fr,De,Es,It,Pt)
+- Added When creating PS1 shortcuts it will automatically add game infos in CFG
+- Added Settings menu with database languages ​​selection
+- Added Blank any partition (Delete only all files on the partition)
+- Added All database PS1, PS2, APP in XML Format
+
+- Fixed infinite loop when checking connection to ART server (could get stuck during the process)
+- Fixed Extraction of PS2 games if zso format is detected
+- Fixed issues with PS2 games installion with multiple tracks (e.g., Dynasty Warriors 2).
+- Fixed PS1 shortcut names in the OPL APPS TAB, removing the game ID from the front name.
+- Fixed Game descriptions exceeding 255 characters in CFG files. (OPL Could freeze randomly)
+- Fixed Partition detection.
+- Fixed When creating the title.cfg it checks if it exists it will no longer overwrite it but will only change the title and boot
+- Fixed Game titles were not updated when updating partition resources
+- Fixed background color of Infos.sys when updating partition resources
+- Fixed PSBBN Manual.xml page error with title name containing &amp;
+
+- Optimized the script by rewriting some parts of the code.
+- Reorganized the menu for improved navigation
+- Moved Inject-OPL launcher function to the update partition header
+- Moved Convert HDL Partition for PSBBN & XMB function to the update partition header
+
+- Rewriting conversion file from scratch
+- Rewriting ART downloads from scratch
+- Rewriting Installation PS1 games for HDD-OSD, PSBBN, XMB from scratch
+- Rewriting Installation PS1 games for __.POPS# from scratch
+- Rewriting Creating ShortCut for PS1 Games
+
+- Updated Title Database for PS1 & PS2. (PS1 database now has LightSpan LSP IDs)
+- Updated Download link for ARTs. (From September 2024)
+- Removed CD-DVD path when installing PS2 games
+- Removed POPS-VCD-Extractor
+- Removed ECM Conversion
+- Removed CHD Conversion
+
+--------------------------------------------------------------------
+1.1.8 [10/12/2023]
+
+- Added HDD Cache: Improves loading time; no need to scan partitions every time.
+- Added LNG Language files transfer for OPL Resources.
+- Added Full support for compressed formats (.Zip, .7z, .RAR) during installation of PS2 games.
+- Added Option to hide HDL partitions while installing PS2 games.
+- Added Improvement for detecting hidden, unhidden, or converted partitions.
+- Added Further improvement for cloning HDD.
+- Added Original date format for PSBBN info.sys. Example: 20051002.
+- Added The ability to add [PS1] or a custom prefix in front of shortcut names for PS1 games in the OPL APPS TAB.
+- Added Download ART cover for PS1 games in OPL APPS (Dokan Driver required for internal HDD).
+- Added Display of total used and available HDD size.
+- Added Display of game names instead of partition names during the scan of PS2 partitions.
+- Added More PS2 Icons for HDD-OSD 3215 Icons!
+- Fixed A bug that caused a crash when several PS2-formatted hard drives were connected simultaneously.
+- Fixed Dump header for hidden partitions.
+- Fixed After mounting a partition with pfsfuse, the chosen partition window will automatically appear in Explorer.
+- Fixed Name conflict if two games with the same name use a different region.
+- Fixed Partitions converted for PSBBN/XMB will no longer be visible in hidden partitions.
+- Change When detecting __.POPS# partitions, it will only show the detected ones and not the full list.
+- Updated Title Database for PS1 & PS2.
+- Updated Download link for ARTs.
+- Other fixes and improvements.
+- Much less spaghetti code.
+- PFS BatchKit Manager can water your plants! 😂
+
+--------------------------------------------------------------------
+1.1.7 [2023/06/01]
+
+- Added A new Title database containing all redump titles for PS1 & PS2 games. The databases probably contain 99% of titles, with the missing 1% being games from the Asian region.
+- Added An option to download compatibility modes for OPL when installing a PS2 game.
+- Added When downloading CFGs, it will keep OPL user settings and add compatibility mode to needed games.
+- Added Option for ZSO LZ4HC compression.
+- Added FreeHDBoot Fix Graphic Corruption in OSD
+- Fixed DVD9 corruption during installation. like (GT4, God of war)
+- Fixed Oversized covers for PSX XMB.
+- Fixed Assigning the correct title during update partition header for games that share the same gameid.
+- Fixed a bug with the display of some info for HDD-OSD, PSBBN, XMB installation.
+- Fixed a bug with 7z when installing a PS2 game
+- Fixed all conflicting titles for games sharing the same gameid. see more infos > https://github.com/GDX-X/Title-Database-Scrapper/
+- Fixed other minor bugs.
+
+--------------------------------------------------------------------
+1.1.6 [2023/03/10]
+
+- Added Option to copy Manually selected PS2 games to another hard drive (also copy games header to keep HDD-OSD icons)
+- Added Choose a Custom path when transferring PS2 games (useful if your games are stored on another HDD or Directory)
+- Added Option for Update OPNPS2LD.ELF in root of OPL partition
+- Added Md5 scan for "Namco museum" and "Namco musem 50th anniversary" games to give them the correct title during installation
+- Added A lot New gameids in PS1 & PS2 database and some cleanup
+- Added New visual
+- Fixed A bug with hdl_dump which prevents the copying of games in a loop (The bug is still present in hdl_dump but I created a loop in batch which bypasses the problem)
+- Updated ART Download link
+- Some improvements
+
+--------------------------------------------------------------------
+1.1.5 [2022/12/16]
+
+- Added Create shortcuts PS1 Game for OPL APPS TAB (For official OPL)
+- Added Updates All APPS (Already installed as partition)
+- Added Cheat Device for PAL and NTSC-U in APPS Menu
+- Added Open PS2 Loader Stable Download in APPS menu (Alternative to the version available on the github in case it is broken)
+- Added Kelftool for sign ELF (if it detects PS2KEYS.DAT in BAT Folder it will be used instead of SCEDoormat_NoME) NOTE: Doesn't support signing for PSX at the moment but maybe one day
+- Added New KRYPTO.KHN (Support sign ELF for CEX, DEX, PSX)
+- Added New gameids in PS1 & PS2 database
+- Fixed a bug with Illegal characters
+- Fixed a bug when Renaming game titles in OSD
+- Fixed a bug with Downloading resources for APPS
+- Fixed a bug when Inject-OPL Launcher
+- Some improvements
+- Updated ART Download link
+
+--------------------------------------------------------------------
+1.1.4 [2022/11/23]
+
+- Added Download Original Icon & Background Colors PS2 SaveData for HDD-OSD (icon.ico, del.ico) when installing PS2 games and when updating the header if exists in the database
+- Added Link for Rockstar Games Uncensored Cheat (Allows to enable Blood, Rampage, Dismemberment even if the language in the BIOS Console are French, Spain, German, Italian for GTA3, GTAVC & Manhunt)
+- Fixed Some bug when updating partition header
+- Fixed Detection gameid for PS1 Game [SLPS_024.14 Medarot R]
+- Fixed Detection gameid for PS1 Game [SLUS_013.46 Dragon Warrior VII (USA) (Disc 2)]
+- Updated hdl_dump BUILD_9cd71a4
+
+--------------------------------------------------------------------
+1.1.3 [2022/11/14]
+
+- Added Install your own ELF applications as a partition (With ELF signature) Your applications will have the ID "UAPP" which means User Application
+- Added Update your Application KELF (Already Installed as partition)
+- Added Update Partition header for PS1, PS2, APPS (Update Title, Icons, Gameinfo, ART)
+- Added When downloading and installing applications, from the download menu, you can choose whether you want a larger partition size. (Example if you want to put your roms in the same partitions for retroarch or others)
+- Added Support for Zip and 7z files during installation for PS2 games (Allows to temporarily extract the iso)
+- Added Some gameid in PS1 & PS2 database + cleanup + Delete some fake gameid
+- Added When converting an HDL partition for the PSBBN, XMB, it will check if OPNPS2LD.ELF is present in the partition
+- Fixed a bug where it still detected partitions even if the name was misspelled
+- Changed ZSO logic, now it will extract the zso before the transfer (temporary solution, This is to avoid partition corruption)
+- Disabled Scan Partitions Error (Analysis does not work)
+- Rewrite APPS Downloader (Very much less spaghetti :D)
+- Updated hdl_dump BUILD_87d3099
+- Updated pfsshell BUILD_05da6d0
+- Some Optimization and cleaning
+
+--------------------------------------------------------------------
+1.1.2 [2022/09/18]
+
+- Added Downloads APPS (Download some useful application) (More apps will be added later. Auto update)
+- Added Apps Installation as a partition for HDD-OSD, PSBBN, XMB
+- Added Custom infos database for APPS
+- Added Backup PS1 Games from POPS PFS Partition
+- Added Undo partition conversion for PSBBN, XMB
+- Added Recursively Hide All PS2 Games partitions
+- Added Recursively UnHide All PS2 Games partitions
+- Added Checks if the game is already installed before converting it to ZSO
+- Added Protection for PSX DESR HDD (For formatting and MBR Hack)
+- Added Support Multiple HDD-OSD Versions (1.00J 1.00U 1.10U) (LBA48 Only From SUDC4)
+- Added New gameid in PS1 & PS2 Database
+- Fixed Games Infos Database (For some strange reason some info was not readable)
+- Fixed Crash during update checks if no internet connection was detected
+- Some Cleanup
+
+--------------------------------------------------------------------
+1.1.1 [2022/07/03]
+
+- Added Some information when Transfer PS2 games (Titles, Gameid, Region, Disctype, Format, Size)
+- Added Maxcso for convert ISO TO ZSO
+- Added Support ZSO files (You can either convert your iso to zso or install the already compressed zso files. Put .zso files in DVD Folder)
+- Added Dump CD-ROM & DVD-ROM PS1 & PS2 With Redump Tools and other alternatives (Support CD, DVD, DVD9) (Depends on optical drive compatibility)
+- Added Checking for updates When launching the batch (A message will indicate if an update is available)
+- Added an option if the ART.zip file exists it will extract the ARTs if no internet connection is detected Or if download link is down
+- Added Support LSP Educational Gameid for PS1 Games (Creepy games)
+- Added Some gameid in PS1 & PS2 database + small cleanup
+- Added Alternative for Transfer PS2 Game from network with hdl_svr_093.elf instead NBD-Server (The transfer is a little bit faster)
+- Added Install Dokan Driver in one clic (Allow Mount Any partition in windows Explorer)
+- Fixed a small bug which prevented the detection of DVD9 in ZSO format
+- Fixed Crash when create cheats with mastercode
+- Fixed the few bugs with the conversions
+- Optimization and some cleaning of some parts of the code.
+- Updated hdl_dump (Support modded games)
+
+--------------------------------------------------------------------
+1.1.0 [2022/05/26]
+
+- Added Detection FreeHDBoot For HDD-OSD installation (If FHDB is not detected it will still be possible to install the HDD-OSD to install FHDB later)
+- Added Convert PS2 Games for PSBBN & PSX DESR (Display PS2 Games in PSBBN & XMB Menu)
+- Added When transferring PS1 games as a partition it will also configure it for the PSBBN & XMB Menu
+- Added Backup Or Inject MBR PS2 Program
+- Added Rename PS1 & PS2 game titles displayed on HDD-OSD, PSBBN, XMB
+- Added Backup Or Inject Partition header HDD-OSD, PSBBN, XMB + Partition resources (Customize your partition header)
+- Added Now you can change the partition you want to Transfer Or Backup OPL files Example: (__common) Or (+OPL) Or Select Manually
+- Added Option for compress .ISO TO .ZSO Before transfer to HDD (Experimental, compress iso for reduce size)
+- Added Global CHEATS.TXT for POPS With $HDTVFIX Enabled by default
+- Added Many game IDs to PS1 and PS2 database + cleaning
+- Added Some translation French titles in database
+- Added Check for updates (Only link to github for For the moment)
+- Changed Partitions list display (will use hdl_dump instead pfsshell)
+- Fixed TitlesDB supports letter accents in case OPL supports letter accents PS2 Game in the future. (but will be displayed in ascii to display correctly in OPL)
+- Fixed of an illegal character during extracting PS2 games
+- Fixed a bug that prevented hard drives from being detected in some cases
+- Fixed minor bugs
+- Updated pfsshell
+- Updated hdl_dump
+- Other minor changes
+- Optimization and lots of cleaning of some parts of the code. less spaghetti :D but (still need to be optimized)
+
+--------------------------------------------------------------------
+1.0.9 [2022/03/28]
+
+- Added Copy PS2 Game to Another HDD (No need to extract the games on your pc) + (You don't lose your custom game HDD-OSD icons)
+- Added Create VMC
+- Added Option for Inject OPL-Launcher when installing PS2 games
+- Added Estimating File Size Before transfer
+- Added Cache clearing OPL after adding new games.
+- Fixed Rename PS1 Games (When you rename your PS1 games, the save folder will also be renamed with the new name)
+- Fixed POPS-VMC Backup folder (if a folder contained `%`, when extracting it does not display the `%` on the folder name)
+- Fixed CFG titles containing a slash were not displaying
+- Fixed Download Link
+- Changed Game list display to alphabetical order
+- Updated hdl_dump (Fixed the bug where it does not detect some random games)
+- Updated POPS-VCD-ID-Extractor (Add compatibility for ELF ID using `-` instead of `_`)
+- Optimization of some parts of the code (still need to be optimized)
+- Other minor changes
+
+--------------------------------------------------------------------
+1.0.8 [2022/02/15]
+
+- Added Install NBD Driver
+- Added NBD Server For Manage HDD from network (Once the hard disk is connected the computer will see it as a local disk) (Special thanks to LopoTRI for taking the time to try the NBD)
+- Added Menu partitions informations
+- Fixed PS1 games as partition for HDD-OSD (When downloading MC.ico, Icon.sys. It did not check the size if it was 0 bytes The partition was considered corrupt.)
+- Fixed some bugs
+- Updated OPL-Launcher
+- Updated hdl_dump
+- Other minor changes
+
+--------------------------------------------------------------------
+1.0.7 [2022/02/06]
+
+- Added Install PS1 games as partition for HDD-OSD (Assigns the original name of the game during installation + ART If available) 
+- Added New IDs PS1 Database
+- Added Option to Create cheat.CHT with mastercode before Transfer PS2 Games
+- Added Option to Add a prefix gameid for PS1 games
+- Added Option to Automatically rename all PS2 game titles on HDD with titles in database
+- Fixed When renaming a PS2 game if the title was similar to another, it couldn't rename it
+- Updated pfsshell (which solves the partition creation problem)
+- Updated ARTs Link Database [January 2022]
+- Removed Option Blank Partition (no longer available in the new version of pfsshell)
+- Cleanup Code for the new pfsshell command
+- Cleanup Titles in PS1 database (Some titles example: "Simpsons, The - Wrestling" are now displayed as "The Simpsons - Wrestling"
+
+--------------------------------------------------------------------
+1.0.6 [2022/01/22]
+
+- Changed The number of PS2 hard drives is no longer limited to 6 (You can manually choose your HDD or an Auto search)
+- Added New IDs PS1 to Database
+- Added New IDs PS2 to Database
+- Added Download Cheat Menu
+- Added Better detection for Mastercode
+- Added CFG title database (When you download the CFGs of your games, it will automatically give them the original game title in the .CFG)
+- Added WideScreen Cheat Installation with detection of mastercode before install (Allows to install the cheat only if the mastercode matches)
+- Fixed Mastercode_maker for illegal characters and DVD9 detection
+- Fixed WideScreen cheat, it will no longer overwrite the .CHT if it exists
+- Fixed Illegal characters for conversion menu (If a game includes a `!` In its name, it was not visible)
+- Fixed Rename .VCD With database (If a game had the same name but from a different region, it will no longer overwrite the other)
+- Fixed CFG (If a description or a game title contained a `$` it will no longer be taken in the new CFG)
+- Fixed Folder APPS (If the title of a folder contained a `!` It could not create the title.cfg)
+- Fixed Some wrong titles and duplicates IDs in database
+- Cleanup more Titles in PS2 database (Some titles example: "Simpsons, The: Road Rage" are now displayed as "The Simpsons: Road Rage"
+- Other minor changes
+
+--------------------------------------------------------------------
+1.0.5 [2021/12/31]
+
+- Changed Menu Name (Dump Tools) For (Games Management)
+- Changed CFG link Database
+- Changed LOG for MD5 Verification (Better visibility) 
+- Added Option for Extract PS1 Games Manually (In any partition)
+- Added Delete a PS1 Games 
+- Added Rename a PS1 & PS2 Games
+- Added Check if the ART are already exist in the ART folder (It does not unnecessarily redownload the ART already present)
+- Added Check if the CFG has custom OPL Game settings in the CFG folder (If any settings are detected, it will update the CFGs and keep your OPL Game settings)
+- Added Each title found in the database will Assign in the .CFG title after download
+- Added LOG for each partition when you transfer a .VCD
+- Added Checking connection for downloads
+- Added PS2-OPL-CFG-Database.zip (For Offline install)
+- Added Database PS1 For Assign title of the original game.VCD
+- Added Mastercode_Finder (Automatically create the .CHT in CHT Folder with the mastercode of your .iso in the DVD folder
+- Added FreeMcBoot_Installer_1.966 (If you hack your hard drive in Advanced Menu > HDD Manager, it will give you FreeMcBoot 1.966 installer
+ in a folder called << !COPY_TO_USB_ROOT >> You will need to copy its content to the root of your usb key)
+- Fixed Some probleme with Title_Cfg_Maker (Just drop your folder with your .ELF in Apps folder The .ELF is no longer renamed with the name of the folder will keep its original name)
+- Fixed Extract WideScreens Cheat (For only game present in HDD)
+- Fixed MD5 Check (He analyzed the same game twice after renaming it)
+- Fixed Backup PS2 Games Manually (If you were to make a backup of a game that has almost the same name as another, it will backup both.)
+- Fixed Bug Recursively Convert .BIN To .VCD
+- Fixed Some Errors with illegal characters
+- Updated ARTs link Database
+- Updated DiagBox
+- Uptaded VCD_ID_EXTRACTOR
+- Cleanup unused code
+
+--------------------------------------------------------------------
+1.0.4 [2021/12/05]
+
+- Added Export Game PS1 List (Present in HDD)
+- Added Export Game PS2 List (Present in HDD)
+- Added Option for Extract PS2 Games Manually
+- Added MD5 Check For your .ISO/.BIN If the MD5 match with the database it will rename it with the name find in the database.
+- Added MD5 Log for Fail and Success
+- Added VCD_ID_EXTRACTOR.exe For future improvement (Thanks To Israpps)
+- Fixed Extract For POPS VMC Files CHEATS.TXT, VMCDIR.TXT, DISCS.TXT
+- Updated OPL-Launcher.elf
+
+--------------------------------------------------------------------
+1.0.3 [2021/11/21]
+
+- Added +OPL Detection for HDD-OSD Installation
+- Added Download CFG Manually
+- Added Extraction POPS Virtual Memory Card Folder
+- Fixed Some Translations
+- Fixed LOG Apps,Theme
+- Updated OPL-Launcher.elf
+- Updated OPNPS2LD.elf
+- Updated BusyBox
+
+--------------------------------------------------------------------
+1.0.2 [2021/11/05]
+
+- Fixed folder copy with dots in the name
+- Add CFG Downloads for the games present in HDD
+
+--------------------------------------------------------------------
+1.0.1 [2021/10/26]
+
+- Fix files with spaces for conversion menu
+
+--------------------------------------------------------------------
+1.0.0 [2021/10/24]
+
+- First Release

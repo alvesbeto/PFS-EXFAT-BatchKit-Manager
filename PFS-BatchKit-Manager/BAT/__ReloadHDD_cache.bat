@@ -2,6 +2,14 @@
  cd ..
  set rootpath=%cd%
 
+	REM Check if it is an APA-Jail drive (has OPL volume)
+	set @APA_JAIL=No
+	powershell -NoProfile -Command "$v = Get-Volume -FileSystemLabel 'OPL' -ErrorAction SilentlyContinue; if ($v) { Write-Output 'Yes' } else { Write-Output 'No' }" > "%rootpath%\TMP\apa_jail_check.txt" 2>nul
+	set /p @APA_JAIL=<"%rootpath%\TMP\apa_jail_check.txt"
+
+	if /I "!@APA_JAIL!"=="Yes" goto ApaJailCache
+	if /I "%@APA_JAIL%"=="Yes" goto ApaJailCache
+
 	REM Cache
 	echo Creating Partition Cache...
 	"%rootpath%\BAT\hdl_dump" toc !@hdl_path!> "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt"
@@ -16,8 +24,9 @@
 	echo\
 	echo\
 	pause
-	) else (
-	
+	exit /b 1
+	)
+
 	echo Creating Game Cache...
 	"%rootpath%\BAT\hdl_dump" hdl_toc !@hdl_path!> "%rootpath%\BAT\__Cache\PS2_GAMES_HDD.txt"
 	
@@ -30,7 +39,7 @@
 	"%rootpath%\BAT\busybox" grep -e "\.POPS\." "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt" | "%rootpath%\BAT\busybox" cut -c30-250 | "%rootpath%\BAT\busybox" cut -c4-13 | "%rootpath%\BAT\busybox" sed -e "s/-/_/g; s/.\{8\}/&./" > "%rootpath%\TMP\POPS_GAMES_ID.txt"
 	"%rootpath%\BAT\busybox" grep -e "\.POPS\." "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt" | "%rootpath%\BAT\busybox" cut -c30-250 | "%rootpath%\BAT\busybox" sed -e "s/^/|/" > "%rootpath%\TMP\PARTITION_POPS.txt"
 	
-	for /f "usebackq" %%A in ("%rootpath%\TMP\POPS_GAMES_ID.txt") do (
+	if exist "%rootpath%\TMP\POPS_GAMES_ID.txt" for /f "usebackq" %%A in ("%rootpath%\TMP\POPS_GAMES_ID.txt") do (
 	"%rootpath%\BAT\busybox" grep "%%A" "%rootpath%\BAT\TitlesDB\TitlesDB_PS1_English.txt" >nul
 		if errorlevel 1 (echo %%A __UNKNOW>> "%rootpath%\TMP\PS1GAMES.txt") else ("%rootpath%\BAT\busybox" grep "%%A" "%rootpath%\BAT\TitlesDB\TitlesDB_PS1_English.txt" >> "%rootpath%\TMP\PS1GAMES.txt")
 		"%rootpath%\BAT\busybox" sed -i "s/%%A __UNKNOW//g" "%rootpath%\TMP\PS1GAMES.txt"
@@ -41,7 +50,7 @@
 	"%rootpath%\BAT\busybox" grep -e "PP.APPS-" "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt" | "%rootpath%\BAT\busybox" cut -c30-250 | "%rootpath%\BAT\busybox" cut -c4-13 | "%rootpath%\BAT\busybox" sed -e "s/-/_/g; s/.\{8\}/&./" > "%rootpath%\TMP\APPS_ID.txt"
 	"%rootpath%\BAT\busybox" grep -e "PP.APPS-" "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt" | "%rootpath%\BAT\busybox" cut -c30-250 | "%rootpath%\BAT\busybox" sed -e "s/^/|/" > "%rootpath%\TMP\PARTITION_APPS.txt"
 	
-	for /f "usebackq" %%A in ("%rootpath%\TMP\APPS_ID.txt") do (
+	if exist "%rootpath%\TMP\APPS_ID.txt" for /f "usebackq" %%A in ("%rootpath%\TMP\APPS_ID.txt") do (
 	"%rootpath%\BAT\busybox" grep "%%A" "%rootpath%\BAT\TitlesDB\TitlesDB_APP.txt" >nul
 		if errorlevel 1 (echo %%A __UNKNOW>> "%rootpath%\TMP\APPS.txt") else ("%rootpath%\BAT\busybox" grep "%%A" "%rootpath%\BAT\TitlesDB\TitlesDB_APP.txt" >> "%rootpath%\TMP\APPS.txt")
 		"%rootpath%\BAT\busybox" sed -i "s/%%A __UNKNOW//g" "%rootpath%\TMP\APPS.txt"
@@ -49,9 +58,12 @@
 	if not exist "%rootpath%\TMP\APPS.txt" (type nul> "%rootpath%\BAT\__Cache\PARTITION_APPS.txt") else ("%rootpath%\BAT\busybox" paste -d " " "%rootpath%\TMP\APPS.txt" "%rootpath%\TMP\PARTITION_APPS.txt" 2>&1 | "%rootpath%\BAT\busybox" sort -k2 > "%rootpath%\BAT\__Cache\PARTITION_APPS.txt" & "%rootpath%\BAT\busybox" sed -i "s/ |/|/g; s/^|//g; s/\^//g" "%rootpath%\BAT\__Cache\PARTITION_APPS.txt")
    
    REM Total Size Used/Available
+   set "@TotalHDD_Used=0MB"
+   set "@TotalHDD_Available=0MB"
+   set "@TotalHDD_Percentage=0%%"
    "%rootpath%\BAT\busybox" grep "Total slice size:" "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt" > "%rootpath%\TMP\Total_Used_Available.txt"
-   for /f "usebackq tokens=6,8" %%s in ("%rootpath%\TMP\Total_Used_Available.txt") do set "TotalHDD_Used=%%s" & set TotalHDD_Available=%%t
-   for %%s in (!TotalHDD_Used! !TotalHDD_Available!) do (
+   if exist "%rootpath%\TMP\Total_Used_Available.txt" for /f "usebackq tokens=6,8" %%s in ("%rootpath%\TMP\Total_Used_Available.txt") do set "TotalHDD_Used=%%s" & set TotalHDD_Available=%%t
+   if defined TotalHDD_Used for %%s in (!TotalHDD_Used! !TotalHDD_Available!) do (
    if "%%s"=="!TotalHDD_Used:~0,-1!" set /A TypePartSize=!TotalHDD_Used:~0,-3!
    if "%%s"=="!TotalHDD_Available!" set /A TypePartSize=!TotalHDD_Available:~0,-2!
    
@@ -61,8 +73,10 @@
    )
 
 	REM Total Percentage Size Used/Available 
-	set /A percentage=!TotalHDD_Used:~0,-3! * 1000/ !TotalHDD_Size!
-	set @TotalHDD_Percentage=!percentage:~0,-1!.!percentage:~-2!%%%%
+	if defined TotalHDD_Used if defined TotalHDD_Size if not "!TotalHDD_Size!"=="0" (
+		set /A percentage=!TotalHDD_Used:~0,-3! * 1000 / !TotalHDD_Size!
+		set @TotalHDD_Percentage=!percentage:~0,-1!.!percentage:~-2!%%%%
+	)
 	
     REM Current OPL Resource Partition
 	echo device !@pfsshell_path! > "%rootpath%\TMP\PFS-OPLPART.txt"
@@ -112,7 +126,32 @@
 	echo exit >> "%rootpath%\TMP\PFS-PSBBN.txt"
 	type "%rootpath%\TMP\PFS-PSBBN.txt" | "%rootpath%\BAT\pfsshell" 2>&1 | "%rootpath%\BAT\busybox" grep -m1 -o "p2lboot" > "%rootpath%\TMP\hdd-p2lboot.txt" & set /P @hdd_p2lboot=<"%rootpath%\TMP\hdd-p2lboot.txt"
 	IF "!@hdd_p2lboot!"=="p2lboot" (set @PSBBN_Installed=Yes) else (set @PSBBN_Installed=No)
+	goto WriteHDDCache
+
+:ApaJailCache
+	powershell -NoProfile -ExecutionPolicy Bypass -File "%rootpath%\BAT\__Ensure_Opl_Drive_Letter.ps1" -PhysicalDrivePath "!@pfsshell_path!" -RootPath "%rootpath%" >nul 2>&1
+	type nul > "%rootpath%\BAT\__Cache\PARTITION_PS2HDD.txt"
+	type nul > "%rootpath%\BAT\__Cache\PS2_GAMES_HDD.txt"
+	type nul > "%rootpath%\BAT\__Cache\PARTITION_HDL_GAME.txt"
+	type nul > "%rootpath%\BAT\__Cache\PARTITION_POPS_GAME.txt"
+	type nul > "%rootpath%\BAT\__Cache\PARTITION_APPS.txt"
 	
+	set "@TotalHDD_Used=0GB"
+	set "@TotalHDD_Available=0GB"
+	set "@TotalHDD_Percentage=0%"
+	powershell -NoProfile -Command "try { $v = Get-Volume -FileSystemLabel 'OPL' -ErrorAction SilentlyContinue; if($v){ $u = [math]::Round(($v.Size - $v.SizeRemaining)/1GB, 1); $f = [math]::Round($v.SizeRemaining/1GB, 1); $pct = [math]::Round((($v.Size - $v.SizeRemaining)/$v.Size)*100); Write-Output \"$u`GB $f`GB $pct\" } } catch {}" > "%rootpath%\TMP\opl_stats.txt" 2>nul
+	for /f "usebackq tokens=1,2,3" %%u in ("%rootpath%\TMP\opl_stats.txt") do (
+		if not "%%u"=="" set "@TotalHDD_Used=%%u"
+		if not "%%v"=="" set "@TotalHDD_Available=%%v"
+		if not "%%w"=="" set "@TotalHDD_Percentage=%%w%%"
+	)
+	set "OPLPART=+OPL"
+	set "CUSTOM_OPLPART=Yes"
+	set "@PSX2DESR_HDD=No"
+	set "@PSBBN_Installed=No"
+	goto WriteHDDCache
+
+:WriteHDDCache
 	echo set @hdl_path=!@hdl_path!> "%rootpath%\BAT\__Cache\HDD.BAT"
 	echo set @pfsshell_path=!@pfsshell_path!>> "%rootpath%\BAT\__Cache\HDD.BAT"
 	echo set @NumberPS2HDD=!@NumberPS2HDD!>> "%rootpath%\BAT\__Cache\HDD.BAT"
@@ -124,7 +163,7 @@
 	echo set @TotalHDD_Percentage=!@TotalHDD_Percentage!>> "%rootpath%\BAT\__Cache\HDD.BAT"
 	echo set @PSX2DESR_HDD=!@PSX2DESR_HDD!>> "%rootpath%\BAT\__Cache\HDD.BAT"
 	echo set @PSBBN_Installed=!@PSBBN_Installed!>> "%rootpath%\BAT\__Cache\HDD.BAT"
+	echo set @APA_JAIL=!@APA_JAIL!>> "%rootpath%\BAT\__Cache\HDD.BAT"
 	
 	echo set OPLPART=!OPLPART!>> "%rootpath%\BAT\__Cache\HDD.BAT"
 	echo set CUSTOM_OPLPART=!CUSTOM_OPLPART!>> "%rootpath%\BAT\__Cache\HDD.BAT"
-	)

@@ -1,0 +1,49 @@
+---
+description: HDD-OSD 1.10U (hosdsys.elf) vs POPS-Binaries — prerequisite for Install HDD-OSD and APA-Jail OSD menu
+---
+
+# HDD-OSD vs POPS-Binaries
+
+## Feito
+
+- Mensagem de **Install HDD-OSD [1]** e `BAT/__Verify_HDD-OSD_Files.ps1` deixam claro que **POPS-Binaries não substitui** o pacote Sony HDD-OSD quando `POPS-Binaries\POPSTARTER.ELF` existe.
+
+## Situação típica
+
+| Pacote | Pasta | Serve para |
+|--------|-------|------------|
+| **POPS-Binaries** | `POPS-Binaries\` | POPStarter / jogos PS1 em partições `__.POPS` ou exFAT `POPS/` (APA-Jail) |
+| **HDD-OSD 1.10U** | extrair em `HDD-OSD\` | Browser 2.0 — obrigatório `HDD-OSD\__system\osd100\hosdsys.elf` |
+
+O repositio Git só inclui templates APA-Jail em `HDD-OSD\` (CNF, `conf_hdd_apajail_exfat.cfg`), **sem** `hosdsys.elf`.
+
+## O que o usuário precisa fazer
+
+1. Obter **HDDOSD-1.10U.7z** (MD5 do 7z: `403202A03B910FB6FBD522D6AB5007E7`).
+2. Extrair **dentro de** `PFS-BatchKit-Manager\HDD-OSD\` até existir `__system\osd100\hosdsys.elf` (MD5 ELF: `ca9ab553e8b51259ccf1ca4ea2d1bc00`).
+3. Rodar verificação: `powershell -File BAT\__Verify_BatchKit_Binaries.ps1 -RootPath .` (auditoria completa) ou `BAT\__Verify_HDD-OSD_Files.ps1 -RootPath .`.
+4. **OSD/XMB [1]** Install HDD-OSD → depois **[6]** HOSDMenu para APA-Jail + exFAT.
+
+## Auditoria (2026-03-30 — pasta do usuário)
+
+| Item | Status na pasta BatchKit |
+|------|--------------------------|
+| POPS-Binaries (POPStarter, TROJAN, wLaunchELF) | OK (vem do repo / transfer) |
+| POPS.ELF + IOPRP252.IMG (Sony PS1) | **FALTA** (copyright; não vem no repo) |
+| `BAT\!COPY_TO_USB_ROOT.7z` | OK — só FreeMcBoot/FHDB USB, **sem** hosdsys |
+| `BAT\OSDMenu\hosdmenu.elf` | OK |
+| `HDD-OSD\__system\osd100\hosdsys.elf` | **FALTA** — `__system` vazia; só CNF/templates no Git |
+| `HDDOSD-1.10U.7z` no projeto | **FALTA** |
+
+Script: `BAT/__Verify_BatchKit_Binaries.ps1`.
+
+**Extracao automatica:** se `HDDOSD-1.10U.7z` (MD5 correto) for copiado para a raiz do BatchKit, `BAT/__Install_HDDOSD_FromLocal7z.ps1` extrai antes do Install HDD-OSD [1].
+
+## Opções APA / exFAT no menu
+
+Não dependem do POPS; dependem do fluxo correto:
+
+- **HDD Management [9]** modo 2, **[11]**, **[13]**
+- **OSD/XMB [5]–[7]** (sync exFAT / HOSDMenu)
+
+Install HDD-OSD **[1]** só avança com `hosdsys.elf` presente.

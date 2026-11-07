@@ -1,0 +1,51 @@
+---
+description: Verificação do repositório ps2homebrew/OSD-Initialization-Libraries vs PFS-BatchKit HDD-OSD
+globs: PFS-BatchKit-Manager/**/*
+alwaysApply: false
+---
+
+# OSD-Initialization-Libraries (verificação)
+
+**Repo:** [ps2homebrew/OSD-Initialization-Libraries](https://github.com/ps2homebrew/OSD-Initialization-Libraries)  
+**Branch padrão:** `main` (README raw em `master` redireciona; API usa `main`).  
+**Última atividade repo:** 2026-08-19 (metadados GitHub).
+
+## O que é
+
+Fork/documentação + código C da comunidade (base FMCB / reverse-engineering Sony OSD init):
+
+| Pasta | Conteúdo |
+|-------|----------|
+| `osd/` | Exemplo **libosdinit** — `main.c`, boot DVD/PS1/PS2, EEPROM/OSD config (ROM v2.20). **Não** é o browser HDD-OSD completo. |
+| `kpatch/` | Patches **System Driver Update** (`osdsys.elf`, `osd110.elf`) para ROM v1.00/v1.01 — cadeia FMCB → `osd130.elf` → update no HDD. |
+| `mbr/` | **Código-fonte** do MBR homebrew (boot `pfs0:/osd100/hosdsys.elf`, FSCK, fallback OSD). Compilar localmente; **sem** binário MBR na release. |
+
+README longo explica init EE/IOP, boot certification, InitOsd, histórico `icon.sys` / HDD Browser, etc.
+
+## Releases (tag `latest`, prerelease 2022-03-23)
+
+CI publica **apenas**:
+
+- `example.elf` (~395 KiB) — demo das libs OSD init
+- `osdsys.elf`, `osd110.elf` (~14 KiB) — patches kernel ROM antiga
+
+**Não há:** `hosdsys.elf`, `osdmain.elf`, pacote HDD-OSD 1.10U, `__sysconf` / ícones Sony, MBR pré-compilado.
+
+## Relação com PFS-BatchKit Manager
+
+| Necessidade BatchKit | Este repo |
+|----------------------|-----------|
+| `HDD-OSD\__system\osd100\hosdsys.elf` (1.10U, MD5 `ca9ab553…`) | **Não fornece** — continua obrigatório extrair **HDDOSD-1.10U.7z** (Sony/GDX). |
+| `BAT/OSDMenu/hosdmenu.elf` | **pcm720/OSDMenu** (já integrado via `__Fetch_HOSDMenu_Elf.ps1`). |
+| MBR no disco / Hack MBR | BatchKit usa fluxo próprio + FHDB; fonte MBR **compatível** com caminhos `osd100/hosdsys.elf` está em `mbr/` mas é **referência de build**, não drop-in no PC. |
+| Init EE para homebrew custom | `example.elf` + sources em `osd/` — útil para devs, não substitui Install HDD-OSD **[1]**. |
+
+## Conclusão (feito / não fazer)
+
+- **Feito:** repo verificado via API GitHub + README + `mbr/README.md`; confirmado que **não resolve** a ausência de `hosdsys.elf` no projeto.
+- **Não integrar** download automático deste repo como substituto de HDD-OSD 1.10U.
+- **Opcional futuro:** linkar README do BatchKit para `mbr/` como documentação de boot chain; compilar MBR homebrew só se houver requisito explícito (KELF/HDDLOAD fora do escopo atual).
+
+## Pendência usuário (inalterada)
+
+Extrair HDD-OSD 1.10U → `HDD-OSD\__system\osd100\hosdsys.elf` → `BAT\__Verify_HDD-OSD_Files.ps1` → Install HDD-OSD **[1]** → HOSDMenu **[6]**.

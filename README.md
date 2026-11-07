@@ -18,6 +18,44 @@ if my tools have helped you or saved you a lot of time and you would like to buy
 # How to use
 
 <details>
+  <summary> <h7> <b> How to Prepare APA-Jail (Hybrid minimal PFS + exFAT OPL) [NEW] </b> </h7> </summary>
+   <p>
+
+Allows you to format the PS2 internal HDD with a minimal PFS system area (~2GB) for FreeHDBoot/HOSDMenu booting while keeping the rest of the drive formatted in standard **exFAT** (`OPL` volume) for direct drag-and-drop game loading via PC.
+
+#### Step 1: Format HDD (APA-Jail Type-A2)
+1. Run `!PFS-BatchKit-Manager.bat` as Administrator and select your target PS2 HDD.
+2. In the Main Menu, go to `9 (HDD Management)` > `1 (Format HDD)` > Option `2 (APA-Jail minimal + exFAT)`.
+3. This creates a hybrid Sector 0 (APA header + PC MBR), 128MB minimal PFS system partitions (`__system`, `__sysconf`, `__common`, `__contents`), and formats the remaining drive as standard exFAT labeled `OPL`.
+
+#### Step 2: Install Boot Stack
+1. In `8 (OSD/XMB Management)`, choose Option `6 (Install HOSDMenu + exFAT boot stack)`.
+2. Select your bootloader:
+   * **Option 1: FreeHDBoot 1.966 Official** (Recommended for unmodded PS2 consoles).
+   * **Option 2: krHACKen Universal MBR** (Recommended for modchipped consoles like Matrix/Modbo).
+3. The script automatically aligns and injects the MagicGate KELF payload into LBA 16 using low-level Win32 sector writes (`rawcopy.exe`), updates APA checksums, and copies system binaries into the PFS partitions.
+
+#### Step 3: Update OPL, Configure Language, HD 720p & IGR
+1. In `8 (OSD/XMB Management)`, choose Option `5 (Update OPL, Languages, HD 720p & IGR)` (or via `3 (OPL Management)` > Option `6`).
+2. The script queries the official GitHub repository, downloads the latest `OPNPS2LD.ELF`, and extracts all 34 official translation packs (`OPNPS2LD-LANGS.7z`).
+3. An interactive selector dynamically detects your Windows Host OS language (`CurrentUICulture` / `settings.ini`) and presents it as Option `[1]` (`[Recommended - Host System Language]`), while offering popular options (`English`, `Spanish`, `French`, etc.) or the full catalog of all 34 languages.
+4. **Alta Definição (HD 720p & 16:9):** Configura a interface gráfica do OPL em modo panorâmico 16:9 widescreen (`wide_screen=1`) e resolução HD progressiva 720p @ 60Hz (`vmode=5`).
+5. **In-Game Reset (IGR 100% HDD):** Configura `exit_path=` para que ao pressionar o combo de IGR (`L1+L2+R1+R2+SELECT+START`), o jogo encerre retornando diretamente ao OPL no HDD interno via FreeHDBoot Auto-Boot (`LK_Auto_E1`), sem necessidade de qualquer Memory Card.
+6. **Jogos em HD (GSM):** Cria o template mestre `conf_game.cfg` e atualiza as configurações em `CFG/` com `$EnableGSM=1` e `$GSMVMode=10` (HDTV 720p @ 60Hz).
+7. **Injeção Dupla (PFS + exFAT):** Injeta todos os idiomas e configurações tanto nas partições PFS (`__common:/OPL/`, `__common:/OPL/LNG/`, `__common:/LNG/`, `__sysconf:/FMCB/`) quanto no volume exFAT (`E:\LNG\`, `E:\conf_opl.cfg`), garantindo que o OPL carregue seu idioma e configurações de vídeo imediatamente no bootloader sem depender do BDM estar ativo.
+
+#### Step 4: Add Games & Play
+1. Connect the HDD to your PC — the tool automatically mounts and assigns a drive letter to the `OPL` volume in Windows.
+2. Drag and drop your `.iso` or `.zso` game images directly into the `DVD/` or `CD/` folders.
+3. Put cover art into `ART/` and virtual memory cards into `VMC/`.
+4. Reconnect the HDD to your PS2, boot up, and OPL will immediately start in high definition 720p Widescreen, in your chosen language, and with your games forced in 720p HD!
+
+For complete technical specifications and architectural details, see [SDD.md](SDD.md).
+  ------
+   </p>
+</details>
+
+<details>
   <summary> <h7> <b> How to Install FreeHDBoot (Hack your PS2 hard drive) </b> </h7> </summary>
    <p>
      
@@ -118,7 +156,7 @@ NOTE: HDD-OSD will not work on a 2TB hard drive (Currently)
 4) A window should warn you if you want to install the driver Confirm install the driver                              
 (If the driver refuses to install, you will have to go into your computer's bios and disable Secureboot UEFI)
 
-5) After installing the driver Turn on your PS2 go to OPL (Compatible NBD [__Download Here__](https://raw.githubusercontent.com/GDX-X/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/HDD-OSD/OPNPS2LD.ELF)) 
+5) After installing the driver Turn on your PS2 go to OPL (Compatible NBD [__Download Here__](https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/HDD-OSD/OPNPS2LD.ELF)) 
      
 6) In OPL Go to `Settings` > `Enable Write Operation` `ON` Select `OK` For save
    
@@ -159,10 +197,20 @@ NOTE: For PS1 games you need to install them as a partition everything will be d
 </details>
 
 <details>
-  <summary> <h7> <b> Feature </b> </h7> </summary>
+  <summary> <h7> <b> Features & Capabilities </b> </h7> </summary>
    <p>
 
- Everything !
+- **APA-Jail Type-A2 Hybrid Partitioning:** Minimal PFS system footprint (~2GB) for native console booting + standard PC exFAT data volume (`OPL`) up to 2TB for fast USB/SATA game transfers.
+- **Robust MBR Bootloader Injection:** Sector-level alignment and direct Win32 raw write via `rawcopy.exe`, bypassing Windows OS locks without corrupting the PC partition table.
+- **Boot Stack Options:**
+  - FreeHDBoot 1.966 Official with custom `FREEHDB.CNF` ensuring the FHDB boot logo appears.
+  - krHACKen Universal MBR for modchipped consoles (Matrix Infinity, Modbo, clones).
+- **Latest Open PS2 Loader (OPL) Auto-Updater:**
+  - Automated fetching from GitHub Releases (`latest`).
+  - Pre-configured Block Device Media (`BDM`) ATA driver mode (`enable_bdm_hdd=1`, `usb_mode=2`, `default_device=0`).
+  - Full support for 32 official OPL Language Packs (`OPNPS2LD-LANGS.7z`) with an interactive language picker and font deployment.
+- **PFS System Management:** Fast `pfsshell` script generation for importing and exporting files to `__system`, `__sysconf`, and `__common`.
+- **Legacy HDL and POPS Support:** Full compatibility with classic HDL Game installations, POPS PS1 conversions, NBD network server mounts, and HDD-OSD / PSBBN XMB browser assets.
   ------
    </p>
 </details>
@@ -287,3 +335,4 @@ TnA For giving me some ideas to add to the script.
   ------
    </p>
 </details>
+
