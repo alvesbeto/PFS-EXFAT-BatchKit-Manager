@@ -2,7 +2,7 @@
 
 <img src="https://i.imgur.com/O70NFyn.png" alt="Logo" align="right" width="400"/>
 
-> **Fork mantido por [@alvesbeto](https://github.com/alvesbeto/PFS-BatchKit-Manager)**  
+> **Fork mantido por [@alvesbeto](https://github.com/alvesbeto/PFS-EXFAT-BatchKit-Manager)**  
 > *Baseado no projeto original de [GDX-X/PFS-BatchKit-Manager](https://github.com/GDX-X/PFS-BatchKit-Manager)*
 
 O **PFS BatchKit Manager** é uma suíte abrangente para gerenciar discos rígidos internos de PlayStation 2 e PSX (DESR). 
@@ -24,7 +24,7 @@ Este **Fork** foi desenvolvido para modernizar a utilização do HD interno do P
 | **Compatibilidade de Jogos** | Forçar GSM globalmente causava travamentos em diversos jogos. | **Resolução Nativa Preservada**: jogos rodam em suas resoluções originais de fábrica sem gerar `conf_game.cfg` defeituoso. |
 | **Integração com Bootloader** | Boot legado ou dependente de cartões FMCB. | **FreeHDBoot / OSDMenu Integrado**: inicialização limpa direto do HD sem nenhum Memory Card inserido no console. |
 | **Reparo de Partição** | Não possui reparo de tabela APA-Jail. | **Ferramenta de Reparo de Cabeçalho**: regenera o cabeçalho APA LBA 0 e alinhamento do MBR sem perda de dados. |
-| **Canal de Atualizações** | Conectado ao upstream do autor original. | **Independente**: consulta e atualiza diretamente deste fork (`alvesbeto/PFS-BatchKit-Manager`), preservando todas as customizações. |
+| **Canal de Atualizações** | Conectado ao upstream do autor original. | **Independente**: consulta e atualiza diretamente deste fork (`alvesbeto/PFS-EXFAT-BatchKit-Manager`), preservando todas as customizações. |
 
 ---
 

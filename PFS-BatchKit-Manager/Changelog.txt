@@ -5,7 +5,7 @@
 - Added In-Game Reset (IGR) support directly to exFAT partition (mass:/OPL/OPNPS2LD.ELF)
 - Added FreeHDBoot OSDMenu integration with native video mode (vmode=0 Auto) and widescreen support
 - Preserved native game resolution (removed global forced GSM 720p)
-- Updated application update endpoints to point to alvesbeto/PFS-BatchKit-Manager
+- Updated application update endpoints to point to alvesbeto/PFS-EXFAT-BatchKit-Manager
 
 --------------------------------------------------------------------
 1.2.0 [25/01/2025]

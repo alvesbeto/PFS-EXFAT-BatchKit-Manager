@@ -88,7 +88,7 @@ ping -n 1 -w 2000 github.com >nul
 			echo Unable to PING^^!
 			"%~dp0BAT\Diagbox" gd 07
 			) else (
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/!PFS-BatchKit-Manager.bat" -O "%~dp0TMP\!PFS-BatchKit-Manager2.bat" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-EXFAT-BatchKit-Manager/main/PFS-BatchKit-Manager/!PFS-BatchKit-Manager.bat" -O "%~dp0TMP\!PFS-BatchKit-Manager2.bat" >nul 2>&1
 for %%F in ( "!PFS-BatchKit-Manager2.bat" ) do if %%~zF==0 del "%%F"
 
 "%~dp0BAT\busybox" md5sum "%~dp0TMP\!PFS-BatchKit-Manager2.bat" 2>&1 | "%~dp0BAT\busybox" grep -o "[0-9a-z]\{32\}" > "%~dp0TMP\CheckUPDATE.txt" & set /p CheckUPDATE=<"%~dp0TMP\CheckUPDATE.txt"
@@ -362,7 +362,7 @@ if "!choice!"=="13" (goto ScanningPS2HDD)
 if "!choice!"=="14" (goto PFSBMSettings)
 
 if "!choice!"=="15" (start https://ko-fi.com/J3J6PIQ9O)
-if "!choice!"=="20" (start https://github.com/alvesbeto/PFS-BatchKit-Manager)
+if "!choice!"=="20" (start https://github.com/alvesbeto/PFS-EXFAT-BatchKit-Manager)
 
 (goto mainmenu)
 
@@ -407,7 +407,7 @@ set "choice=" & set /p choice=Select Option:
 setlocal EnableDelayedExpansion
 if "!choice!"=="1" start https://twitter.com/GDX_SM
 if "!choice!"=="3" start https://www.youtube.com/user/GDXTV/videos
-if "!choice!"=="4" start https://github.com/alvesbeto/PFS-BatchKit-Manager
+if "!choice!"=="4" start https://github.com/alvesbeto/PFS-EXFAT-BatchKit-Manager
 if "!choice!"=="5" start https://ko-fi.com/J3J6PIQ9O
 if "!choice!"=="6" cls & type "%~dp0\Credits.txt" & echo\ & echo\ & echo\ & pause
 if "!choice!"=="7" start https://www.psx-place.com/forums/#playstation-2-forums.6
@@ -725,7 +725,7 @@ ping -n 1 -w 2000 github.com >nul
 			echo Unable to PING^^!
 			"%~dp0BAT\Diagbox" gd 07
 			) else (
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.BAT" -O "%~dp0TMP\APPS.BAT" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-EXFAT-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.BAT" -O "%~dp0TMP\APPS.BAT" >nul 2>&1
 for %%F in ( "APPS.BAT" ) do if %%~zF==0 (del "%%F")
 
 if exist "APPS.BAT" (
@@ -737,9 +737,9 @@ echo\
 echo\
 echo Updating...
 move "APPS.BAT" "%~dp0BAT" >nul 2>&1
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.zip" -O "%~dp0TMP\APPS.zip" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-EXFAT-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPS.zip" -O "%~dp0TMP\APPS.zip" >nul 2>&1
 for %%F in ( "APPS.zip" ) do if %%~zF==0 (del "%%F" ) else (move "APPS.zip" "%~dp0BAT" >nul 2>&1)
-"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPDB.xml" -O "%~dp0TMP\APPDB.xml" >nul 2>&1
+"%~dp0BAT\wget" -q "https://raw.githubusercontent.com/alvesbeto/PFS-EXFAT-BatchKit-Manager/main/PFS-BatchKit-Manager/BAT/APPDB.xml" -O "%~dp0TMP\APPDB.xml" >nul 2>&1
 for %%F in ( "APPDB.xml" ) do if %%~zF==0 (del "%%F" ) else (move "APPDB.xml" "%~dp0BAT" >nul 2>&1)
   			)
  		) else (set "checkappsupdate=")

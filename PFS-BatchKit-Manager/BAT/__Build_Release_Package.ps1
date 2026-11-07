@@ -52,7 +52,7 @@ $buildInfo = @"
 ----PFS-BatchKit-Manager----
 Version: $Version
 Build Date: $buildTime
-Fork: https://github.com/alvesbeto/PFS-BatchKit-Manager
+Fork: https://github.com/alvesbeto/PFS-EXFAT-BatchKit-Manager
 Features: APA-Jail Minimal + exFAT BDM + OPL GitHub Updater + Portuguese_BR + IGR on exFAT
 "@
 [System.IO.File]::WriteAllText($hashFile, $buildInfo, [System.Text.Encoding]::ASCII)
